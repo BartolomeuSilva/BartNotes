@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(uuid()) @db.Uuid
+  email         String       @unique @db.VarChar(255)
+  username      String       @unique @db.VarChar(50)
+  password_hash String       @db.Text
+  avatar_url    String?      @db.Text
+  created_at    DateTime     @default(now()) @db.Timestamptz
+  updated_at    DateTime     @updatedAt @db.Timestamptz
+  is_active     Boolean      @default(true)
+
+  notes         Note[]
+  tags          Tag[]
+  attachments   Attachment[]
+
+  @@map("users")
+}
+
+model Note {
+  id           String        @id @default(uuid()) @db.Uuid
+  user_id      String        @db.Uuid
+  title        String        @db.VarChar(500)
+  content      String        @default("") @db.Text
+  // content_tsv is managed by Postgres triggers/raw queries usually, or we can use generated columns in Prisma preview.
+  // We'll manage it via a raw query if needed, or omit it from Prisma schema and create it manually in a migration.
+  is_pinned    Boolean       @default(false)
+  is_archived  Boolean       @default(false)
+  is_deleted   Boolean       @default(false)
+  deleted_at   DateTime?     @db.Timestamptz
+  word_count   Int           @default(0)
+  created_at   DateTime      @default(now()) @db.Timestamptz
+  updated_at   DateTime      @updatedAt @db.Timestamptz
+
+  user         User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  tags         Tag[]         @relation("NoteTags")
+  versions     NoteVersion[]
+  attachments  Attachment[]
+
+  @@map("notes")
+}
+
+model Tag {
+  id         String     @id @default(uuid()) @db.Uuid
+  user_id    String     @db.Uuid
+  name       String     @db.VarChar(100)
+  color      String?    @db.VarChar(7)
+  created_at DateTime   @default(now()) @db.Timestamptz
+
+  user       User       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  notes      Note[]     @relation("NoteTags")
+
+  @@map("tags")
+}
+
+model NoteVersion {
+  id             String   @id @default(uuid()) @db.Uuid
+  note_id        String   @db.Uuid
+  content        String   @db.Text
+  version_number Int
+  created_at     DateTime @default(now()) @db.Timestamptz
+
+  note           Note     @relation(fields: [note_id], references: [id], onDelete: Cascade)
+
+  @@map("note_versions")
+}
+
+model Attachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  note_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  filename   String   @db.Text
+  minio_key  String   @unique @db.Text
+  mime_type  String   @db.VarChar(100)
+  size_bytes BigInt
+  created_at DateTime @default(now()) @db.Timestamptz
+
+  note       Note     @relation(fields: [note_id], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
+}
