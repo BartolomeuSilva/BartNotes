@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { notesApi } from '../services/api'
+import { notesApi } from '../services/supabaseApi'
 
 export const useNotesStore = create((set, get) => ({
   notes: [],
@@ -30,7 +30,7 @@ export const useNotesStore = create((set, get) => ({
         limit: 500,
         ...params,
       })
-      set({ notes: data.data || [], loading: false })
+      set({ notes: data || [], loading: false })
     } catch {
       set({ notes: [], loading: false })
     }
@@ -39,8 +39,7 @@ export const useNotesStore = create((set, get) => ({
   setActiveNote: (note) => set({ activeNote: note }),
 
   createNote: async () => {
-    const { data } = await notesApi.create({ title: '', content: '' })
-    const note = data.data
+    const note = await notesApi.create({ title: '', content: '' })
     set(s => ({ notes: [note, ...s.notes], activeNote: note }))
     return note
   },
@@ -48,8 +47,7 @@ export const useNotesStore = create((set, get) => ({
   updateNote: async (id, body) => {
     set({ saveStatus: 'saving' })
     try {
-      const { data } = await notesApi.update(id, body)
-      const updated = data.data
+      const { data: updated } = await notesApi.update(id, body)
       set(s => ({
         notes: s.notes.map(n => n.id === id ? updated : n),
         activeNote: s.activeNote?.id === id ? updated : s.activeNote,
@@ -82,14 +80,14 @@ export const useNotesStore = create((set, get) => ({
       notes: s.notes.filter(n => n.id !== id),
       activeNote: s.activeNote?.id === id ? null : s.activeNote,
     }))
-    return data.data
+    return data
   },
 
   pinNote: async (id) => {
     const { data } = await notesApi.pin(id)
     set(s => ({
-      notes: s.notes.map(n => n.id === id ? data.data : n),
-      activeNote: s.activeNote?.id === id ? data.data : s.activeNote,
+      notes: s.notes.map(n => n.id === id ? data : n),
+      activeNote: s.activeNote?.id === id ? data : s.activeNote,
     }))
   },
 
@@ -99,12 +97,11 @@ export const useNotesStore = create((set, get) => ({
       notes: s.notes.filter(n => n.id !== id),
       activeNote: s.activeNote?.id === id ? null : s.activeNote,
     }))
-    return data.data
+    return data
   },
 
   duplicateNote: async (id) => {
-    const { data } = await notesApi.duplicate(id)
-    const note = data.data
+    const note = await notesApi.duplicate(id)
     set(s => ({ notes: [note, ...s.notes], activeNote: note }))
     return note
   },

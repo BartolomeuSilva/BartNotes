@@ -7,7 +7,7 @@ import {
 import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
 import { useUiStore } from '../../store/uiStore'
-import { notesApi } from '../../services/api'
+import { notesApi } from '../../services/supabaseApi'
 import { debounce, markdownToHtml, countWords, countChars, extractTitle, TAG_COLORS } from '../../lib/utils'
 import ConfirmModal from '../ui/ConfirmModal'
 
@@ -17,7 +17,8 @@ export default function NoteEditor({ noteId }) {
   const { tags, createTag } = useTagsStore()
   const { toast, setEditorOpen } = useUiStore()
 
-  const [content, setContent] = useState('')
+  const [titleLine, setTitleLine] = useState('')
+  const [bodyContent, setBodyContent] = useState('')
   const [viewMode, setViewMode] = useState('edit') // 'edit' | 'preview' | 'split'
   const [showTagPicker, setShowTagPicker] = useState(false)
   const [showVersions, setShowVersions] = useState(false)
@@ -26,22 +27,35 @@ export default function NoteEditor({ noteId }) {
   const [newTagName, setNewTagName] = useState('')
   const [selectedColor, setSelectedColor] = useState(TAG_COLORS[0])
 
+  const titleRef = useRef(null)
   const textareaRef = useRef(null)
-  const saveTimerRef = useRef(null)
+
+  const getFullContent = (title, body) => {
+    const t = title.replace(/\n/g, ' ')
+    return body ? `${t}\n\n${body}` : t
+  }
 
   // Sync content when note changes
   useEffect(() => {
     if (activeNote) {
-      setContent(activeNote.content || '')
+      const raw = activeNote.content || ''
+      const newlineIdx = raw.indexOf('\n')
+      if (newlineIdx === -1) {
+        setTitleLine(raw)
+        setBodyContent('')
+      } else {
+        setTitleLine(raw.slice(0, newlineIdx))
+        setBodyContent(raw.slice(newlineIdx + 1).replace(/^\n+/, ''))
+      }
     }
   }, [activeNote?.id])
 
-  // Auto-focus editor
+  // Auto-focus title on open
   useEffect(() => {
-    if (viewMode === 'edit' && textareaRef.current) {
-      textareaRef.current.focus()
+    if (viewMode === 'edit' && titleRef.current) {
+      titleRef.current.focus()
     }
-  }, [viewMode, activeNote?.id])
+  }, [activeNote?.id])
 
   const debouncedSave = useCallback(
     debounce((id, newContent) => {
@@ -50,25 +64,40 @@ export default function NoteEditor({ noteId }) {
     []
   )
 
+  const handleTitleChange = (e) => {
+    const val = e.target.value
+    setTitleLine(val)
+    if (activeNote) debouncedSave(activeNote.id, getFullContent(val, bodyContent))
+  }
+
+  const handleTitleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === 'ArrowDown') {
+      e.preventDefault()
+      textareaRef.current?.focus()
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault()
+      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, bodyContent))
+    }
+  }
+
   const handleChange = (e) => {
     const val = e.target.value
-    setContent(val)
-    if (activeNote) debouncedSave(activeNote.id, val)
+    setBodyContent(val)
+    if (activeNote) debouncedSave(activeNote.id, getFullContent(titleLine, val))
   }
 
   const handleKeyDown = (e) => {
-    // Ctrl/Cmd+S → force save
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault()
-      if (activeNote) updateNote(activeNote.id, { content })
+      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, bodyContent))
     }
-    // Tab → insert 2 spaces
     if (e.key === 'Tab') {
       e.preventDefault()
       const start = e.target.selectionStart
       const end = e.target.selectionEnd
-      const newVal = content.slice(0, start) + '  ' + content.slice(end)
-      setContent(newVal)
+      const newVal = bodyContent.slice(0, start) + '  ' + bodyContent.slice(end)
+      setBodyContent(newVal)
       requestAnimationFrame(() => {
         if (textareaRef.current) {
           textareaRef.current.selectionStart = start + 2
@@ -125,7 +154,10 @@ export default function NoteEditor({ noteId }) {
   }
 
   const handleRestoreVersion = async (version) => {
-    setContent(version.content)
+    const raw = version.content || ''
+    const newlineIdx = raw.indexOf('\n')
+    if (newlineIdx === -1) { setTitleLine(raw); setBodyContent('') }
+    else { setTitleLine(raw.slice(0, newlineIdx)); setBodyContent(raw.slice(newlineIdx + 1).replace(/^\n+/, '')) }
     await updateNote(activeNote.id, { content: version.content })
     setShowVersions(false)
     toast('Versão restaurada')
@@ -165,9 +197,9 @@ export default function NoteEditor({ noteId }) {
   }
 
   const isDeleted = activeNote.isDeleted
-  const title = extractTitle(content)
-  const wordCount = countWords(content)
-  const charCount = countChars(content)
+  const fullContent = getFullContent(titleLine, bodyContent)
+  const wordCount = countWords(fullContent)
+  const charCount = countChars(fullContent)
 
   return (
     <div className="note-editor-container" style={{ position: 'relative' }}>
@@ -276,15 +308,41 @@ export default function NoteEditor({ noteId }) {
         {(viewMode === 'edit' || viewMode === 'split') && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: viewMode === 'split' ? '1px solid var(--border-subtle)' : 'none' }}>
             <textarea
+              ref={titleRef}
+              value={titleLine}
+              onChange={handleTitleChange}
+              onKeyDown={handleTitleKeyDown}
+              placeholder="Título"
+              disabled={isDeleted}
+              rows={1}
+              spellCheck
+              style={{
+                width: '100%',
+                resize: 'none',
+                border: 'none',
+                outline: 'none',
+                background: 'transparent',
+                fontFamily: "'Playfair Display', serif",
+                fontSize: '1.6rem',
+                fontWeight: 700,
+                color: 'var(--text-primary)',
+                padding: '20px 24px 8px',
+                lineHeight: 1.3,
+                overflowY: 'hidden',
+              }}
+            />
+            <div style={{ height: 1, margin: '0 24px', background: 'var(--border-subtle)' }} />
+            <textarea
               ref={textareaRef}
               className="editor-textarea"
-              value={content}
+              value={bodyContent}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               placeholder="Escreva aqui. Suporte a Markdown."
               disabled={isDeleted}
               spellCheck
               autoComplete="off"
+              style={{ paddingTop: 16 }}
             />
           </div>
         )}
@@ -294,7 +352,7 @@ export default function NoteEditor({ noteId }) {
           <div
             className="markdown-preview"
             style={{ flex: 1 }}
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(content) || '<p style="color:var(--text-muted)">Nenhum conteúdo para pré-visualizar</p>' }}
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(fullContent) || '<p style="color:var(--text-muted)">Nenhum conteúdo para pré-visualizar</p>' }}
           />
         )}
       </div>

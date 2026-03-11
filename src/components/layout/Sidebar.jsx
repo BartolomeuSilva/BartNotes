@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   FileText, Tag, Archive, Trash2, Search, Moon, Sun,
-  Plus, Settings, X, ChevronDown, ChevronRight, LogOut
+  Plus, Settings, X, ChevronDown, ChevronRight, LogOut, Download
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useTagsStore } from '../../store/tagsStore'
 import { useNotesStore } from '../../store/notesStore'
 import { useUiStore } from '../../store/uiStore'
 import { TAG_COLORS } from '../../lib/utils'
+import { useInstallPWA } from '../../hooks/useInstallPWA'
 
 export default function Sidebar({ onClose }) {
   const navigate = useNavigate()
@@ -18,6 +19,7 @@ export default function Sidebar({ onClose }) {
   const { filter, activeTagId, setFilter, setActiveTag, createNote } = useNotesStore()
   const { theme, toggleTheme, toast } = useUiStore()
   const [tagsOpen, setTagsOpen] = useState(true)
+  const { canInstall, install, ios, showIOSHint, setShowIOSHint } = useInstallPWA()
 
   const nav = (path, filterVal, tagId = null) => {
     if (filterVal) setFilter(filterVal)
@@ -68,9 +70,7 @@ export default function Sidebar({ onClose }) {
       {/* Logo */}
       <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 6, background: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ color: 'var(--bg-primary)', fontSize: 14 }}>☁</span>
-          </div>
+          <img src="/logo.png" alt="BartNotes" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
           <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
             BartNotes
           </span>
@@ -143,8 +143,59 @@ export default function Sidebar({ onClose }) {
         )}
       </div>
 
+      {/* Install PWA */}
+      {canInstall && (
+        <div style={{ padding: '10px 12px 0', position: 'relative' }}>
+          <button
+            onClick={install}
+            style={{
+              width: '100%',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '10px 14px',
+              borderRadius: 10,
+              border: '1px solid var(--accent)',
+              background: 'linear-gradient(135deg, var(--accent), #b45309)',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              boxShadow: '0 2px 8px rgba(217,119,6,0.35)',
+              transition: 'opacity 0.15s, transform 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
+          >
+            <Download size={15} />
+            Instalar App
+          </button>
+
+          {/* iOS hint */}
+          {ios && showIOSHint && (
+            <div style={{
+              position: 'absolute', bottom: 'calc(100% + 8px)', left: 12, right: 12,
+              background: 'var(--bg-primary)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '12px 14px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+              fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6,
+              zIndex: 100,
+            }}>
+              <button
+                onClick={() => setShowIOSHint(false)}
+                style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 16, lineHeight: 1 }}
+              >×</button>
+              <p style={{ margin: '0 0 6px', fontWeight: 600, color: 'var(--text-primary)' }}>Instalar no iPhone / iPad</p>
+              <p style={{ margin: 0 }}>
+                1. Toque em <strong>Compartilhar</strong> <span style={{ fontSize: 14 }}>⎙</span> no Safari<br />
+                2. Role e toque em <strong>"Adicionar à Tela Inicial"</strong> <span style={{ fontSize: 14 }}>＋</span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Bottom actions */}
-      <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 12px' }}>
+      <div style={{ borderTop: '1px solid var(--border-subtle)', padding: '8px 12px', marginTop: canInstall ? 10 : 0 }}>
         <button
           onClick={toggleTheme}
           className="btn btn-ghost"
@@ -172,17 +223,22 @@ export default function Sidebar({ onClose }) {
 
         {/* User */}
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0 4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 4px 4px', borderTop: '1px solid var(--border-subtle)', marginTop: 4 }}>
             <div style={{
-              width: 26, height: 26, borderRadius: '50%',
+              width: 34, height: 34, borderRadius: '50%',
               background: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0,
+              fontSize: 14, fontWeight: 700, color: '#fff', flexShrink: 0,
             }}>
               {user.username?.charAt(0).toUpperCase()}
             </div>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user.username}
-            </span>
+            <div style={{ minWidth: 0 }}>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.username}
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.email}
+              </p>
+            </div>
           </div>
         )}
       </div>

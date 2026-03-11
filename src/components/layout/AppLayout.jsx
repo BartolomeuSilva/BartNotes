@@ -6,7 +6,7 @@ import BottomNav from './BottomNav'
 import { useUiStore } from '../../store/uiStore'
 import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
-import { notesApi } from '../../services/api'
+import { notesApi } from '../../services/supabaseApi'
 
 export default function AppLayout() {
   const { id } = useParams()
@@ -21,7 +21,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (id) {
-      notesApi.get(id).then(({ data }) => setActiveNote(data.data)).catch(() => {})
+      notesApi.get(id).then(({ data }) => setActiveNote(data)).catch(() => {})
     }
   }, [id])
 

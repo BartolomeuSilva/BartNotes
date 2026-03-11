@@ -17,10 +17,12 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
     try {
-      await register(email, username, password)
-      navigate('/')
+      const result = await register(email, username, password)
+      if (result?.needsConfirm) {
+        setError('Conta criada! Verifica o teu email para confirmar e depois entra na aplicação.')
+      }
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Erro ao criar conta')
+      setError(err?.message || err?.response?.data?.error?.message || 'Erro ao criar conta')
     } finally {
       setLoading(false)
     }
@@ -39,11 +41,7 @@ export default function RegisterPage() {
 
       <div style={{ width: '100%', maxWidth: 380, animation: 'slideUp 0.3s ease-out' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{
-            display: 'inline-flex', width: 48, height: 48, borderRadius: 12,
-            background: 'var(--text-primary)', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, marginBottom: 16,
-          }}>☁</div>
+          <img src="/logo.png" alt="BartNotes" style={{ display: 'block', width: 72, height: 72, borderRadius: 16, margin: '0 auto 16px', objectFit: 'contain' }} />
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.8rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>
             Criar conta
           </h1>

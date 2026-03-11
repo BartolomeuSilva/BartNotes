@@ -1,0 +1,10 @@
+node_modules
+dist
+.env.local
+.git
+notes
+scripts
+supabase
+*.md
+*.pdf
+*.txt

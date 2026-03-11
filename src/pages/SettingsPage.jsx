@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, Download, Trash2, Moon, Sun, User, Lock } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
-import { userApi } from '../services/api'
+import { userApi } from '../services/supabaseApi'
 import ConfirmModal from '../components/ui/ConfirmModal'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const { user, logout, refreshUser } = useAuthStore()
   const { theme, toggleTheme, toast } = useUiStore()
   const [section, setSection] = useState('profile')
   const [username, setUsername] = useState(user?.username || '')
@@ -23,6 +23,7 @@ export default function SettingsPage() {
     setLoading(true)
     try {
       await userApi.updateProfile({ username })
+      await refreshUser()
       toast('Perfil atualizado')
     } catch { toast('Erro ao atualizar') }
     finally { setLoading(false) }
@@ -46,7 +47,7 @@ export default function SettingsPage() {
       const blob = await userApi.exportData()
       const url = URL.createObjectURL(blob.data)
       const a = document.createElement('a')
-      a.href = url; a.download = 'bartnotes-export.zip'; a.click()
+      a.href = url; a.download = 'bartnotes-export.json'; a.click()
       URL.revokeObjectURL(url)
       toast('Exportação iniciada')
     } catch { toast('Erro ao exportar') }

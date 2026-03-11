@@ -1,0 +1,29 @@
+version: "3.8"
+
+services:
+  bartnotes:
+    image: bartolomeusilva/bartnotes:latest
+    networks:
+      - network_public
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      labels:
+        - "traefik.enable=true"
+        - "traefik.docker.network=network_public"
+        # Roteador principal (HTTPS)
+        - "traefik.http.routers.bartnotes.rule=Host(`bartnotes.ichatbot.com.br`)"
+        - "traefik.http.routers.bartnotes.entrypoints=websecure"
+        - "traefik.http.routers.bartnotes.tls=true"
+        - "traefik.http.routers.bartnotes.tls.certresolver=letsencryptresolver"
+        - "traefik.http.services.bartnotes.loadbalancer.server.port=80"
+
+        # Roteador para capturar a porta 80 e evitar o 404 inicial
+        - "traefik.http.routers.bartnotes-http.rule=Host(`bartnotes.ichatbot.com.br`)"
+        - "traefik.http.routers.bartnotes-http.entrypoints=web"
+        - "traefik.http.routers.bartnotes-http.middlewares=https-redirect"
+
+networks:
+  network_public:
+    external: true

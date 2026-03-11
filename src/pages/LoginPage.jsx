@@ -1,14 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { Download } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import { useInstallPWA } from '../hooks/useInstallPWA'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { login } = useAuthStore()
+  const { user, login } = useAuthStore()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { canInstall, install, ios, showIOSHint, setShowIOSHint } = useInstallPWA()
+
+  useEffect(() => {
+    if (user) navigate('/', { replace: true })
+  }, [user, navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -16,9 +23,9 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate('/')
+      navigate('/', { replace: true })
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Email ou senha incorretos')
+      setError(err?.message || err?.response?.data?.error?.message || 'Email ou senha incorretos')
     } finally {
       setLoading(false)
     }
@@ -40,11 +47,7 @@ export default function LoginPage() {
       <div style={{ width: '100%', maxWidth: 380, animation: 'slideUp 0.3s ease-out' }}>
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
-          <div style={{
-            display: 'inline-flex', width: 48, height: 48, borderRadius: 12,
-            background: 'var(--text-primary)', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, marginBottom: 16,
-          }}>☁</div>
+          <img src="/logo.png" alt="BartNotes" style={{ display: 'block', width: 72, height: 72, borderRadius: 16, margin: '0 auto 16px', objectFit: 'contain' }} />
           <h1 style={{
             fontFamily: "'Playfair Display', serif", fontSize: '1.8rem',
             fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px',
@@ -112,6 +115,56 @@ export default function LoginPage() {
             Criar conta
           </Link>
         </p>
+
+        {/* Install PWA */}
+        {canInstall && (
+          <div style={{ position: 'relative', marginTop: 16 }}>
+            <button
+              onClick={install}
+              style={{
+                width: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '12px 14px',
+                borderRadius: 10,
+                border: '1px solid var(--accent)',
+                background: 'linear-gradient(135deg, var(--accent), #b45309)',
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                boxShadow: '0 2px 12px rgba(217,119,6,0.35)',
+                transition: 'opacity 0.15s, transform 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(0)' }}
+            >
+              <Download size={16} />
+              Instalar App
+            </button>
+
+            {/* iOS hint */}
+            {ios && showIOSHint && (
+              <div style={{
+                marginTop: 10,
+                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '12px 14px',
+                fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7,
+                position: 'relative',
+              }}>
+                <button
+                  onClick={() => setShowIOSHint(false)}
+                  style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18, lineHeight: 1 }}
+                >×</button>
+                <p style={{ margin: '0 0 4px', fontWeight: 600, color: 'var(--text-primary)' }}>Instalar no iPhone / iPad</p>
+                <p style={{ margin: 0 }}>
+                  1. Toque em <strong>Compartilhar ⎙</strong> no Safari<br />
+                  2. Toque em <strong>"Adicionar à Tela Inicial" ＋</strong>
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
