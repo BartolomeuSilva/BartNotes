@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { supabase } from '../lib/supabase'
 import { notesApi } from '../services/supabaseApi'
 
 export const useNotesStore = create((set, get) => ({
@@ -33,6 +34,55 @@ export const useNotesStore = create((set, get) => ({
       set({ notes: data || [], loading: false })
     } catch {
       set({ notes: [], loading: false })
+    }
+  },
+
+  subscribeToNotes: () => {
+    console.log('[Realtime] Iniciando conexão inteligente...')
+    const channel = supabase
+      .channel('notes-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes' }, async (payload) => {
+        console.log('[Realtime] Evento:', payload.eventType, payload.new?.id)
+        
+        const { notes, activeNote } = get()
+
+        if (payload.eventType === 'INSERT') {
+          // Busca a nota completa (com tags) para inserir na lista
+          const { data: newNote } = await notesApi.get(payload.new.id)
+          set({ notes: [newNote, ...notes] })
+        } 
+        else if (payload.eventType === 'UPDATE') {
+          // Atualiza apenas a nota específica na lista sem disparar refresh total
+          const { data: updatedNote } = await notesApi.get(payload.new.id)
+          set({ 
+            notes: notes.map(n => n.id === updatedNote.id ? updatedNote : n),
+            // Se for a nota ativa, atualiza ela também
+            activeNote: activeNote?.id === updatedNote.id ? updatedNote : activeNote
+          })
+        } 
+        else if (payload.eventType === 'DELETE') {
+          set({ 
+            notes: notes.filter(n => n.id !== payload.old.id),
+            activeNote: activeNote?.id === payload.old.id ? null : activeNote
+          })
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'note_tags' }, async (payload) => {
+        // Quando mudam as tags, atualizamos apenas aquela nota
+        const noteId = payload.new?.note_id || payload.old?.note_id
+        if (noteId) {
+          const { data: updatedNote } = await notesApi.get(noteId)
+          const { notes, activeNote } = get()
+          set({
+            notes: notes.map(n => n.id === updatedNote.id ? updatedNote : n),
+            activeNote: activeNote?.id === updatedNote.id ? updatedNote : activeNote
+          })
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   },
 

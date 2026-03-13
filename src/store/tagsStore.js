@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { supabase } from '../lib/supabase'
 import { tagsApi } from '../services/supabaseApi'
 
 export const useTagsStore = create((set, storeGet) => ({
@@ -16,6 +17,19 @@ export const useTagsStore = create((set, storeGet) => ({
     } catch (err) {
       console.error('[tagsStore] fetchTags failed:', err)
       set({ tags: [], loading: false })
+    }
+  },
+
+  subscribeToTags: () => {
+    const channel = supabase
+      .channel('tags-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tags' }, () => {
+        storeGet().fetchTags()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
   },
 

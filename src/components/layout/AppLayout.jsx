@@ -11,12 +11,51 @@ import { notesApi } from '../../services/supabaseApi'
 export default function AppLayout() {
   const { id } = useParams()
   const { sidebarOpen, editorOpen, setSidebarOpen } = useUiStore()
-  const { fetchNotes, setActiveNote } = useNotesStore()
-  const { fetchTags } = useTagsStore()
+  const { fetchNotes, setActiveNote, subscribeToNotes } = useNotesStore()
+  const { fetchTags, subscribeToTags } = useTagsStore()
 
   useEffect(() => {
-    fetchNotes()
-    fetchTags()
+    console.log('[AppLayout] Montando componentes e iniciando Realtime...')
+    
+    let unsubscribeNotes = null
+    let unsubscribeTags = null
+
+    const startSubscriptions = () => {
+      // Limpa inscrições anteriores se existirem
+      if (unsubscribeNotes) unsubscribeNotes()
+      if (unsubscribeTags) unsubscribeTags()
+      
+      console.log('[Realtime] (Re)conectando canais...')
+      fetchNotes()
+      fetchTags()
+      
+      try {
+        unsubscribeNotes = subscribeToNotes()
+        unsubscribeTags = subscribeToTags()
+      } catch (err) {
+        console.error('[AppLayout] Erro ao iniciar inscrições Realtime:', err)
+      }
+    }
+
+    // Inicia na montagem
+    startSubscriptions()
+
+    // Listener para quando o app volta do background (muito comum em mobile)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[AppLayout] App visível, atualizando dados...')
+        startSubscriptions()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      console.log('[AppLayout] Desmontando componente, limpando conexões...')
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (unsubscribeNotes) unsubscribeNotes()
+      if (unsubscribeTags) unsubscribeTags()
+    }
   }, [])
 
   useEffect(() => {
