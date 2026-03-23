@@ -26,8 +26,6 @@ export default function AppLayout() {
       if (unsubscribeTags) unsubscribeTags()
       
       console.log('[Realtime] (Re)conectando canais...')
-      fetchNotes()
-      fetchTags()
       
       try {
         unsubscribeNotes = subscribeToNotes()
@@ -60,7 +58,19 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (id) {
-      notesApi.get(id).then(({ data }) => setActiveNote(data)).catch(() => {})
+      console.log('[AppLayout] URL alterada para nota:', id)
+      const { notes } = useNotesStore.getState()
+      const existing = notes.find(n => n.id === id)
+      
+      if (existing) {
+        setActiveNote(existing)
+      } else {
+        notesApi.get(id)
+          .then(({ data }) => setActiveNote(data))
+          .catch(err => console.error('[AppLayout] Erro ao carregar nota individual:', err))
+      }
+    } else {
+      setActiveNote(null)
     }
   }, [id])
 

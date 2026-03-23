@@ -32,8 +32,9 @@ export const useNotesStore = create((set, get) => ({
         ...params,
       })
       set({ notes: data || [], loading: false })
-    } catch {
-      set({ notes: [], loading: false })
+    } catch (err) {
+      console.error('[notesStore] fetchNotes failed:', err)
+      set({ loading: false }) // Mantém as notas atuais no erro
     }
   },
 
