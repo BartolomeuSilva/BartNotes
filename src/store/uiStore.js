@@ -15,10 +15,14 @@ export const useUiStore = create((set, get) => ({
 
   initTheme: () => {
     const stored = localStorage.getItem('cn-theme')
+    if (stored) {
+      document.documentElement.classList.toggle('dark', stored === 'dark')
+      set({ theme: stored })
+      return
+    }
     const system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    const theme = stored || system
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    set({ theme })
+    document.documentElement.classList.toggle('dark', system === 'dark')
+    set({ theme: system })
   },
 
   setSidebarOpen: (v) => set({ sidebarOpen: v }),
