@@ -571,10 +571,19 @@
     display: inline-flex;
   }
 
+  /* ── Sidebar close button ── */
+  .sidebar-close-btn {
+    display: none;
+  }
+
   /* ── Mobile ── */
   @media (max-width: 768px) {
     .toolbar-desktop-only {
       display: none;
+    }
+
+    .sidebar-close-btn {
+      display: inline-flex;
     }
 
     .sidebar {

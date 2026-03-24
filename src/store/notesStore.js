@@ -89,8 +89,13 @@ export const useNotesStore = create((set, get) => ({
 
   setActiveNote: (note) => set({ activeNote: note }),
 
-  createNote: async () => {
-    const note = await notesApi.create({ title: '', content: '' })
+  createNote: async (data = {}) => {
+    console.log('notesStore createNote called with:', data)
+    const note = await notesApi.create({ 
+      title: data.title || '', 
+      content: data.content || '' 
+    })
+    console.log('notesStore createNote result:', note)
     set(s => ({ notes: [note, ...s.notes], activeNote: note }))
     return note
   },
@@ -107,6 +112,35 @@ export const useNotesStore = create((set, get) => ({
     } catch {
       set({ saveStatus: 'error' })
     }
+  },
+
+  toggleTaskInNote: async (noteId, taskLineIndex, currentLineText) => {
+    const { notes, updateNote } = get()
+    const note = notes.find(n => n.id === noteId)
+    if (!note || !note.content) return false
+
+    const lines = note.content.split('\n')
+    let targetIdx = taskLineIndex
+    
+    // Fallback: se o índice mudou, procura a string exata
+    if (lines[targetIdx] !== currentLineText) {
+      targetIdx = lines.findIndex(l => l === currentLineText)
+    }
+    
+    if (targetIdx !== -1) {
+      const line = lines[targetIdx]
+      const isChecked = line.match(/^\s*-\s*\[([xX])\]/)
+      if (isChecked) {
+        lines[targetIdx] = line.replace(/\[[xX]\]/, '[ ]')
+      } else {
+        lines[targetIdx] = line.replace(/\[\s\]/, '[x]')
+      }
+      
+      const newContent = lines.join('\n')
+      await updateNote(noteId, { content: newContent })
+      return true
+    }
+    return false
   },
 
   deleteNote: async (id) => {

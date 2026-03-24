@@ -200,12 +200,21 @@ export const notesApi = {
   },
 
   async create(body) {
+    console.log('supabaseApi.create called with title:', body.title?.slice(0, 50))
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
-    const title = body.title || extractTitle(body.content)
-    const content = body.content || ''
+    
+    let title = body.title || extractTitle(body.content) || 'Nota sem título'
+    let content = body.content || ''
+    
+    const MAX_CONTENT = 900000
+    if (content.length > MAX_CONTENT) {
+      content = content.slice(0, MAX_CONTENT) + '\n\n...[conteúdo truncado]'
+    }
+    
     const wordCount = content.split(/\s+/).filter(w => w.length > 0).length
 
+    console.log('Inserting note to Supabase...')
     const { data: note, error } = await supabase
       .from('notes')
       .insert({
@@ -216,6 +225,7 @@ export const notesApi = {
       })
       .select()
       .single()
+    console.log('Supabase insert result, error:', error)
     handleError(error)
 
     if (body.tagIds?.length) {
@@ -286,13 +296,17 @@ export const notesApi = {
   },
 
   async delete(id) {
+    console.log('supabaseApi delete called with:', id)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Not authenticated')
+    
     const { error } = await supabase
       .from('notes')
       .update({ is_deleted: true, deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', user.id)
+    
+    console.log('supabaseApi delete result, error:', error)
     handleError(error)
     return { data: { success: true } }
   },

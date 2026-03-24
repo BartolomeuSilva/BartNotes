@@ -1,0 +1,18 @@
+BartNotes - Aplicativo de Notas Premium
+=======================================
+
+BartNotes é um aplicativo de notas moderno e de alto desempenho, desenvolvido com React e Tauri.
+
+Funcionalidades:
+- Editor Markdown com auto-save automático
+- Preview Markdown e modo split
+- Busca full-text em tempo real
+- Tags com cores personalizadas
+- Fixar, arquivar e mover notas para lixeira
+- Histórico de versões (últimas 50)
+- Duplicar notas
+- Tema claro/escuro
+- Interface responsiva (mobile, tablet, desktop)
+- Sincronização com Supabase
+
+Copyright © 2024 BartNotes. Todos os direitos reservados.

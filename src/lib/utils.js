@@ -49,6 +49,8 @@ export function markdownToHtml(md) {
   let html = md
     // Escape HTML
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Internal Links [[nota]]
+    .replace(/\[\[(.*?)\]\]/g, '<a href="#" class="internal-link" data-notetitle="$1">[[ $1 ]]</a>')
     // Code blocks
     .replace(/```([\s\S]*?)```/g, (_, c) => `<pre><code>${c.trim()}</code></pre>`)
     // Inline code
@@ -65,18 +67,24 @@ export function markdownToHtml(md) {
     .replace(/_(.+?)_/g, '<em>$1</em>')
     // Strikethrough
     .replace(/~~(.+?)~~/g, '<del>$1</del>')
-    // Links
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    // Links (Markdown format)
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    // Auto-link URLs (https://... or http://...)
+    .replace(/\b(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>')
     // HR
     .replace(/^---$/gm, '<hr>')
     // Blockquote
     .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+    // Task list (Checkbox vazia inline ou block)
+    .replace(/(?:^|\s)-\s*\[ \]\s+(.+?)(?=$|\n|<)/gm, ' <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" disabled style="margin:0;transform:translateY(1px);"> <span>$1</span></label>')
+    // Task list (Checkbox marcada inline ou block)
+    .replace(/(?:^|\s)-\s*\[[xX]\]\s+(.+?)(?=$|\n|<)/gm, ' <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;"><input type="checkbox" checked disabled style="margin:0;transform:translateY(1px);"> <span style="text-decoration:line-through;color:var(--text-muted);">$1</span></label>')
     // Unordered list
     .replace(/^\s*[-*+] (.+)$/gm, '<li>$1</li>')
     // Ordered list
     .replace(/^\s*\d+\. (.+)$/gm, '<li>$1</li>')
     // Wrap consecutive <li> in <ul>
-    .replace(/(<li>[\s\S]*?<\/li>)(\n(?!<li>)|$)/g, (m) => `<ul>${m}</ul>\n`)
+    .replace(/(<li[^>]*>[\s\S]*?<\/li>)(\n(?!<li)|$)/g, (m) => `<ul style="padding-left: 24px;">${m}</ul>\n`)
     // Paragraphs (lines not already wrapped)
     .replace(/^(?!<[hupbldr]|<\/|<pre|<code|$)(.+)$/gm, '<p>$1</p>')
 

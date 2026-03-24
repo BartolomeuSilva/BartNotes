@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, Download, Trash2, Moon, Sun, User, Lock } from 'lucide-react'
+import { ChevronLeft, Download, Trash2, Moon, Sun, User, Lock, Sparkles, Check } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useUiStore } from '../store/uiStore'
+import { useAiStore, AI_PROVIDERS } from '../store/aiStore'
 import { userApi } from '../services/supabaseApi'
 import ConfirmModal from '../components/ui/ConfirmModal'
 
@@ -10,6 +11,7 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { user, logout, refreshUser } = useAuthStore()
   const { theme, toggleTheme, toast } = useUiStore()
+  const { apiKey, provider, model, customEndpoint, autoSummarize, autoTags, setApiKey, setProvider, setModel, setCustomEndpoint, setAutoSummarize, setAutoTags } = useAiStore()
   const [section, setSection] = useState('profile')
   const [username, setUsername] = useState(user?.username || '')
   const [currentPw, setCurrentPw] = useState('')
@@ -17,6 +19,26 @@ export default function SettingsPage() {
   const [confirmPw, setConfirmPw] = useState('')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [aiKeyInput, setAiKeyInput] = useState(apiKey)
+  const [showKey, setShowKey] = useState(false)
+  const [endpointInput, setEndpointInput] = useState(customEndpoint)
+
+  const currentProvider = AI_PROVIDERS.find(p => p.id === provider)
+  const providerModels = currentProvider?.models || []
+
+  const handleSaveAI = () => {
+    setApiKey(aiKeyInput)
+    if (provider === 'custom') {
+      setCustomEndpoint(endpointInput)
+    }
+    toast('Configurações de IA guardadas')
+  }
+
+  const handleProviderChange = (newProvider) => {
+    setProvider(newProvider)
+    setAiKeyInput('')
+    setEndpointInput('')
+  }
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
@@ -63,6 +85,7 @@ export default function SettingsPage() {
 
   const sections = [
     { id: 'profile', label: 'Perfil', icon: <User size={14} /> },
+    { id: 'ai', label: 'Inteligência AI', icon: <Sparkles size={14} /> },
     { id: 'security', label: 'Segurança', icon: <Lock size={14} /> },
     { id: 'appearance', label: 'Aparência', icon: theme === 'dark' ? <Moon size={14} /> : <Sun size={14} /> },
     { id: 'data', label: 'Dados', icon: <Download size={14} /> },
@@ -109,6 +132,121 @@ export default function SettingsPage() {
                 {loading ? 'A guardar…' : 'Guardar'}
               </button>
             </form>
+          </div>
+        )}
+
+        {section === 'ai' && (
+          <div style={{ animation: 'fadeIn 0.2s ease-out' }}>
+            <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.3rem', marginBottom: 8 }}>Inteligência Artificial</h3>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24 }}>
+              Configure um provedor de IA para usar recursos inteligente nas suas notas.
+            </p>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px', color: 'var(--text-primary)' }}>Provedor de IA</h4>
+              <select
+                className="input"
+                value={provider}
+                onChange={e => handleProviderChange(e.target.value)}
+                style={{ width: '100%', marginBottom: 12 }}
+              >
+                {AI_PROVIDERS.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+
+              {provider === 'custom' ? (
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Endpoint da API</p>
+                  <input
+                    className="input"
+                    value={endpointInput}
+                    onChange={e => setEndpointInput(e.target.value)}
+                    placeholder="https://api.exemplo.com/v1/chat/completions"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+                    {provider === 'openai' && 'Obtenha sua API key em '}
+                    {provider === 'anthropic' && 'Obtenha sua API key em '}
+                    {provider === 'google' && 'Obtenha sua API key em '}
+                    {provider === 'deepseek' && 'Obtenha sua API key em '}
+                    {provider === 'openai' && <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>platform.openai.com</a>}
+                    {provider === 'anthropic' && <a href="https://console.anthropic.com/" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>console.anthropic.com</a>}
+                    {provider === 'google' && <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>aistudio.google.com</a>}
+                    {provider === 'deepseek' && <a href="https://platform.deepseek.com/" target="_blank" rel="noopener" style={{ color: 'var(--accent)' }}>platform.deepseek.com</a>}
+                  </p>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="input"
+                      type={showKey ? 'text' : 'password'}
+                      value={aiKeyInput}
+                      onChange={e => setAiKeyInput(e.target.value)}
+                      placeholder={provider === 'anthropic' ? 'sk-ant-...' : provider === 'google' ? 'AIza...' : 'sk-...'}
+                      style={{ paddingRight: 40 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text-muted)' }}
+                    >
+                      {showKey ? <Check size={16} /> : <span style={{ fontSize: 14 }}>👁️</span>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginBottom: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px', color: 'var(--text-primary)' }}>Modelo</h4>
+              {providerModels.length > 0 ? (
+                <select
+                  className="input"
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  style={{ width: '100%' }}
+                >
+                  {providerModels.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  value={model}
+                  onChange={e => setModel(e.target.value)}
+                  placeholder="Nome do modelo (ex: gpt-3.5-turbo)"
+                />
+              )}
+            </div>
+
+            <button
+              className="btn btn-primary"
+              onClick={handleSaveAI}
+              style={{ gap: 6 }}
+              disabled={!aiKeyInput.trim() && provider !== 'custom'}
+            >
+              <Check size={14} /> Guardar Configurações
+            </button>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 20, marginTop: 16 }}>
+              <h4 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 12px', color: 'var(--text-primary)' }}>Automação</h4>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', marginBottom: 12 }}>
+                <input type="checkbox" checked={autoSummarize} onChange={e => setAutoSummarize(e.target.checked)} style={{ width: 16, height: 16 }} />
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Resumo automático</span>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Gerar resumo ao salvar nota</p>
+                </div>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input type="checkbox" checked={autoTags} onChange={e => setAutoTags(e.target.checked)} style={{ width: 16, height: 16 }} />
+                <div>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>Tags automáticas</span>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>Sugerir tags baseadas no conteúdo</p>
+                </div>
+              </label>
+            </div>
           </div>
         )}
 

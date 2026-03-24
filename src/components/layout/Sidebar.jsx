@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   FileText, Tag, Archive, Trash2, Search, Moon, Sun,
-  Plus, Settings, X, ChevronDown, ChevronRight, LogOut, Download
+  Plus, Settings, X, ChevronDown, ChevronRight, LogOut, Download, Globe, Sparkles, ListTodo, Network, BookOpen
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useTagsStore } from '../../store/tagsStore'
 import { useNotesStore } from '../../store/notesStore'
 import { useUiStore } from '../../store/uiStore'
+import { useClipperStore } from '../../store/clipperStore'
+import { useInstallPwa } from '../../hooks/useInstallPwa'
 import { TAG_COLORS } from '../../lib/utils'
+import logoImg from '../../img/Bart Notes Logo.png'
 
 export default function Sidebar({ onClose }) {
   const navigate = useNavigate()
@@ -16,12 +19,15 @@ export default function Sidebar({ onClose }) {
   const { user, logout } = useAuthStore()
   const { tags } = useTagsStore()
   const { filter, activeTagId, setFilter, setActiveTag, createNote } = useNotesStore()
-  const { theme, toggleTheme, toast } = useUiStore()
+  const { theme, toggleTheme, toast, setChatOpen, setEditorOpen } = useUiStore()
+  const { setOpen } = useClipperStore()
   const [tagsOpen, setTagsOpen] = useState(true)
+  const { isInstallable, promptInstall } = useInstallPwa()
 
   const nav = (path, filterVal, tagId = null) => {
     if (filterVal) setFilter(filterVal)
     if (tagId) setActiveTag(tagId)
+    if (path === '/tasks') setEditorOpen(true)
     navigate(path)
     onClose?.()
   }
@@ -68,13 +74,13 @@ export default function Sidebar({ onClose }) {
       {/* Logo */}
       <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/src/img/Bart Notes Logo.png" alt="BartNotes" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+          <img src={logoImg} alt="BartNotes" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
           <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
             BartNotes
           </span>
         </div>
         {onClose && (
-          <button className="btn btn-ghost" style={{ padding: 4 }} onClick={onClose}>
+          <button className="btn btn-ghost sidebar-close-btn" style={{ padding: 4 }} onClick={onClose}>
             <X size={16} />
           </button>
         )}
@@ -97,14 +103,67 @@ export default function Sidebar({ onClose }) {
           <Plus size={14} />
           Nova nota
         </button>
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            width: '100%', padding: '8px 12px', borderRadius: 6, marginTop: 6,
+            background: 'var(--bg-tertiary)', color: 'var(--text-primary)',
+            border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+            fontFamily: 'inherit', transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Globe size={14} />
+          Capturar URL
+        </button>
+        <button
+          onClick={() => { setChatOpen(true); onClose?.() }}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            width: '100%', padding: '8px 12px', borderRadius: 6, marginTop: 6,
+            background: 'var(--bg-tertiary)', color: 'var(--accent)',
+            border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+            fontFamily: 'inherit', transition: 'opacity 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+        >
+          <Sparkles size={14} />
+          Segundo Cérebro
+        </button>
       </div>
 
       {/* Navigation */}
       <div style={{ padding: '4px 12px', flex: 1, overflow: 'auto' }}>
         {navItem('Todas as notas', <FileText size={14} />, '/', 'all')}
         {navItem('Fixadas', <span style={{ fontSize: 12 }}>📌</span>, '/?filter=pinned', 'pinned')}
+        {navItem('Tarefas', <ListTodo size={14} />, '/tasks')}
+        {navItem('Mapa Mental', <Network size={14} style={{ color: 'var(--accent)' }} />, '/graph')}
+        {navItem('Como usar', <BookOpen size={14} style={{ color: '#f472b6' }} />, '/manual')}
         {navItem('Arquivadas', <Archive size={14} />, '/archived', 'archived')}
         {navItem('Lixeira', <Trash2 size={14} />, '/trash', 'deleted')}
+
+        {isInstallable && (
+          <button 
+            className="nav-item"
+            style={{ 
+              marginTop: 16, background: 'var(--accent)', color: 'white',
+              fontWeight: 600, justifyContent: 'center', borderRadius: 8,
+              boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)',
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px',
+              border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+              width: '100%', transition: 'opacity 0.15s'
+            }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            onClick={promptInstall}
+          >
+            <Download size={14} />
+            <span>Instalar App 🚀</span>
+          </button>
+        )}
 
         {/* Tags */}
         <div style={{ marginTop: 16, marginBottom: 4 }}>

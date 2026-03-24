@@ -3,4 +3,5 @@ Name=BartNotes
 Exec=AppRun
 Icon=bartnotes
 Type=Application
+StartupWMClass=BartNotes
 Categories=Office;X-Notes;

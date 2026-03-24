@@ -8,8 +8,8 @@
     "preview": "vite preview",
     "migrate:supabase": "node scripts/migrate-to-supabase.mjs",
     "tauri": "tauri",
-    "desktop:build:linux": "tauri build && cp -r src-tauri/target/release/bundle/deb/*.deb Linux/ && cp -r src-tauri/target/release/bundle/appimage/*.AppImage Linux/",
-    "desktop:build:windows": "tauri build --target x86_64-pc-windows-msvc && cp -r src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi Windows/"
+    "desktop:build:linux": "tauri build && cp -r src-tauri/target/release/bundle/deb/*.deb Linux/ && cp -r src-tauri/target/release/bundle/appimage/*.AppImage Linux/ && cp -r src-tauri/target/release/bundle/rpm/*.rpm Linux/",
+    "desktop:build:windows": "tauri build --target x86_64-pc-windows-msvc && cp -r src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe Windows/"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.0",
@@ -17,6 +17,7 @@
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-force-graph-2d": "^1.29.1",
     "react-router-dom": "^6.23.1",
     "zustand": "^4.5.4"
   },

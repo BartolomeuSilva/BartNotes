@@ -8,8 +8,14 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import NoteEditorPage from './pages/NoteEditorPage'
 import EmptyEditorPage from './pages/EmptyEditorPage'
+import TasksPage from './pages/TasksPage'
+import GraphPage from './pages/GraphPage'
+import ManualPage from './pages/ManualPage'
 import SettingsPage from './pages/SettingsPage'
 import ToastContainer from './components/ui/Toast'
+import WebClipper from './components/ui/WebClipper'
+import AiChat from './components/ui/AiChat'
+import CommandPalette from './components/ui/CommandPalette'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuthStore()
@@ -43,6 +49,9 @@ export default function App() {
           <Route index element={<EmptyEditorPage />} />
           <Route path="note/new" element={<NoteEditorPage />} />
           <Route path="note/:id" element={<NoteEditorPage />} />
+          <Route path="tasks" element={<TasksPage />} />
+          <Route path="graph" element={<GraphPage />} />
+          <Route path="manual" element={<ManualPage />} />
           <Route path="archived" element={<EmptyEditorPage />} />
           <Route path="trash" element={<EmptyEditorPage />} />
           <Route path="tags/:tagId" element={<EmptyEditorPage />} />
@@ -51,6 +60,9 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <ToastContainer />
+      <WebClipper />
+      <AiChat />
+      <CommandPalette />
     </>
   )
 }

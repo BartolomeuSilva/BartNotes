@@ -4,7 +4,14 @@ export const useUiStore = create((set, get) => ({
   theme: localStorage.getItem('cn-theme') || 'light',
   sidebarOpen: false,
   editorOpen: false,
+  isChatOpen: false,
+  isCommandPaletteOpen: false,
+  isFocusMode: false,
   toasts: [],
+
+  setChatOpen: (v) => set({ isChatOpen: v }),
+  setCommandPaletteOpen: (v) => set({ isCommandPaletteOpen: v }),
+  setFocusMode: (v) => set({ isFocusMode: v }),
 
   toggleTheme: () => {
     const next = get().theme === 'light' ? 'dark' : 'light'

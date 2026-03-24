@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom'
-import { Menu, FileText, Plus, Archive, Trash2 } from 'lucide-react'
+import { Menu, FileText, Plus, Archive, Trash2, Sparkles } from 'lucide-react'
 import { useNotesStore } from '../../store/notesStore'
 import { useUiStore } from '../../store/uiStore'
 
 export default function BottomNav() {
   const navigate = useNavigate()
   const { filter, setFilter, createNote } = useNotesStore()
-  const { setSidebarOpen, editorOpen } = useUiStore()
+  const { setSidebarOpen, editorOpen, setChatOpen } = useUiStore()
 
   const handleNav = (filterVal, path) => {
     setFilter(filterVal)
@@ -50,11 +50,12 @@ export default function BottomNav() {
       </button>
 
       <button
-        className={`bottom-nav-item${filter === 'deleted' ? ' active' : ''}`}
-        onClick={() => handleNav('deleted', '/trash')}
+        className="bottom-nav-item"
+        onClick={() => setChatOpen(true)}
+        style={{ color: 'var(--accent)' }}
       >
-        <Trash2 size={22} />
-        <span>Lixeira</span>
+        <Sparkles size={22} />
+        <span>Chat</span>
       </button>
     </nav>
   )
