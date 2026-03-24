@@ -51,11 +51,11 @@ export default function GraphPage() {
 
     // 2. Criar links (Arestas) parseando Backlinks
     activeNotes.forEach(n => {
-      if (!n.body) return
+      if (!n.content) return
       
       const regex = /\[\[(.*?)\]\]/g
       let match
-      while ((match = regex.exec(n.body)) !== null) {
+      while ((match = regex.exec(n.content)) !== null) {
         const targetTitle = match[1].trim().toLowerCase()
         const targetId = titleToId[targetTitle]
         
