@@ -1,10 +1,11 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Menu, FileText, Plus, Archive, Trash2, Sparkles } from 'lucide-react'
 import { useNotesStore } from '../../store/notesStore'
 import { useUiStore } from '../../store/uiStore'
 
 export default function BottomNav() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { filter, setFilter, createNote } = useNotesStore()
   const { setSidebarOpen, editorOpen, setChatOpen } = useUiStore()
 
@@ -18,9 +19,11 @@ export default function BottomNav() {
     const note = await createNote()
     navigate(`/note/${note.id}`)
   }
+  
+  const isEditingNote = editorOpen && (location.pathname.startsWith('/note') || location.pathname === '/')
 
   return (
-    <nav className={`bottom-nav${editorOpen ? ' editor-open' : ''}`}>
+    <nav className={`bottom-nav${isEditingNote ? ' editor-open' : ''}`}>
       <button
         className="bottom-nav-item"
         onClick={() => setSidebarOpen(true)}
