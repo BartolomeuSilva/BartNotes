@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
   FileText, Tag, Archive, Trash2, Search, Moon, Sun,
-  Plus, Settings, X, ChevronDown, ChevronRight, LogOut, Download, Globe, Sparkles, ListTodo, Network, BookOpen
+  Plus, Settings, X, ChevronDown, ChevronRight, LogOut, Download, Globe, Sparkles, ListTodo, Network, BookOpen, Calendar
 } from 'lucide-react'
 import { useAuthStore } from '../../store/authStore'
 import { useTagsStore } from '../../store/tagsStore'
@@ -41,11 +41,26 @@ export default function Sidebar({ onClose }) {
   }
 
   const handleNewNote = async () => {
-    setFilter('all')
     const note = await createNote()
-    setEditorOpen(true)
-    navigate(`/note/${note.id}`)
     onClose?.()
+    navigate(`/note/${note.id}`)
+  }
+
+  const handleDailyNote = async () => {
+    const today = new Date().toLocaleDateString('pt-BR').split('/').reverse().join('-') // YYYY-MM-DD
+    const displayDate = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+    
+    const existing = notes.find(n => !n.isDeleted && (n.title === today || n.title === displayDate))
+    
+    if (existing) {
+      onClose?.()
+      navigate(`/note/${existing.id}`)
+    } else {
+      const note = await createNote()
+      await updateNote(note.id, { content: `# ${displayDate}\n\n` })
+      onClose?.()
+      navigate(`/note/${note.id}`)
+    }
   }
 
   const actionItem = (label, icon, onClickAction, isAccent = false) => (
@@ -119,6 +134,8 @@ export default function Sidebar({ onClose }) {
       {/* Navigation */}
       <div style={{ padding: '12px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {actionItem('Nova Nota', <Plus size={14} />, handleNewNote)}
+        {actionItem('Nota de Hoje', <Calendar size={14} />, handleDailyNote)}
+        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '8px 0' }} />
         {navItem('Todas as Notas', <FileText size={14} />, '/', 'all')}
         {navItem('Arquivadas', <Archive size={14} />, '/archived', 'archived')}
         {navItem('Fixadas', <span style={{ fontSize: 12 }}>📌</span>, '/?filter=pinned', 'pinned')}

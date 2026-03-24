@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Pin, Archive, Trash2, Tag, Eye, Edit3, Copy,
-  RotateCcw, ChevronLeft, Clock, MoreHorizontal, X, Check, Sparkles, Mic, MicOff, Loader2, Upload, Maximize
+  Pin, Archive, Trash2, Tag, Eye, Edit3, Copy, RotateCcw, ChevronLeft, MoreHorizontal, Upload,
+  X, ChevronDown, ChevronRight, LogOut, Download, Globe, Sparkles, ListTodo, Network, BookOpen, Calendar, Plus,
+  Maximize, Clock, Mic, MicOff, Check, Loader2, MessageSquare
 } from 'lucide-react'
 import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
@@ -18,7 +19,7 @@ export default function NoteEditor({ noteId }) {
   const navigate = useNavigate()
   const { notes, createNote, activeNote, saveStatus, updateNote, deleteNote, deletePermanentNote, pinNote, archiveNote, duplicateNote, restoreNote, setActiveNote } = useNotesStore()
   const { tags, createTag } = useTagsStore()
-  const { toast, setEditorOpen, isFocusMode, setFocusMode } = useUiStore()
+  const { toast, setEditorOpen, isFocusMode, setFocusMode, setChatOpen } = useUiStore()
   const { hasApiKey } = useAiStore()
   const { isRecording, transcript, startRecording, stopRecording, reset, error } = useVoiceStore()
 
@@ -445,14 +446,6 @@ export default function NoteEditor({ noteId }) {
         <div style={{ flex: 1 }} />
 
         {/* AI Button */}
-        <button 
-          className="btn btn-ghost" 
-          title="Inteligência Artificial" 
-          onClick={() => setShowAiPanel(v => !v)} 
-          style={{ padding: 6, color: showAiPanel ? 'var(--accent)' : undefined }}
-        >
-          <Sparkles size={15} />
-        </button>
 
         {/* Upload Audio Button */}
         <input 
@@ -516,6 +509,9 @@ export default function NoteEditor({ noteId }) {
             </button>
             <button className="btn btn-ghost" title="Apagar" onClick={() => setConfirmDelete(true)} style={{ padding: 6, color: '#b91c1c' }}>
               <Trash2 size={15} />
+            </button>
+            <button className="btn btn-ghost" title="Ações de IA" onClick={() => setShowAiPanel(v => !v)} style={{ padding: 6, color: 'var(--accent)' }}>
+              <Sparkles size={15} />
             </button>
           </>
         )}
@@ -608,31 +604,94 @@ export default function NoteEditor({ noteId }) {
           <div
             className="markdown-preview"
             style={{ flex: 1 }}
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(fullContent) || '<p style="color:var(--text-muted)">Nenhum conteúdo para pré-visualizar</p>' }}
+            dangerouslySetInnerHTML={{ __html: markdownToHtml(getFullContent(titleLine, bodyContent)) || '<p style="color:var(--text-muted)">Nenhum conteúdo para pré-visualizar</p>' }}
             onClick={handlePreviewClick}
           />
         )}
       </div>
 
-      {/* Backlinks Panel */}
+      {/* Backlinks Panel (Linear Style) */}
       {!isFocusMode && (() => {
         if (isDeleted || !titleLine.trim()) return null
+        const linkPattern = `[[${titleLine.trim()}]]`
         const backlinks = notes.filter(n => 
           !n.isDeleted && 
           n.id !== activeNote.id && 
-          (n.content || '').includes(`[[${titleLine.trim()}]]`)
+          (n.content || '').includes(linkPattern)
         )
         if (backlinks.length === 0) return null
+        
         return (
-          <div style={{ padding: '16px 24px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 13, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Conexões (Backlinks)</h4>
-            <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 8 }}>
-              {backlinks.map(b => (
-                <div key={b.id} onClick={() => navigate(`/note/${b.id}`)} style={{ padding: '12px 16px', background: 'var(--bg-primary)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', minWidth: 200, transition: 'all 0.1s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}>
-                  <div style={{ fontWeight: 600, marginBottom: 4, color: 'var(--text-primary)', fontSize: 14 }}>{b.title || 'Sem título'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Faz referência a esta nota</div>
-                </div>
-              ))}
+          <div style={{ 
+            padding: '20px 24px', 
+            background: 'var(--bg-secondary)', 
+            borderTop: '1px solid var(--border)',
+            flexShrink: 0 
+          }}>
+            <h4 style={{ 
+              margin: '0 0 16px 0', 
+              fontSize: 11, 
+              fontWeight: 700,
+              color: 'var(--text-muted)', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.1em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
+            }}>
+              <Network size={12} /> Mencionado em ({backlinks.length})
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+              {backlinks.map(b => {
+                const content = b.content || ''
+                const idx = content.indexOf(linkPattern)
+                const start = Math.max(0, idx - 40)
+                const end = Math.min(content.length, idx + linkPattern.length + 40)
+                const snippet = content.slice(start, end).replace(linkPattern, `**${linkPattern}**`)
+                
+                return (
+                  <div 
+                    key={b.id} 
+                    onClick={() => navigate(`/note/${b.id}`)} 
+                    style={{ 
+                      padding: '12px 14px', 
+                      background: 'var(--bg-primary)', 
+                      border: '1px solid var(--border-subtle)', 
+                      borderRadius: 10, 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.borderColor = 'var(--accent)'
+                      e.currentTarget.style.transform = 'translateY(-2px)'
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.borderColor = 'var(--border-subtle)'
+                      e.currentTarget.style.transform = 'translateY(0)'
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {b.title || 'Sem título'}
+                    </div>
+                    <div style={{ 
+                      fontSize: 12, 
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.4,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      opacity: 0.8
+                    }}>
+                      ...{snippet}...
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )
@@ -812,6 +871,13 @@ export default function NoteEditor({ noteId }) {
                 style={{ justifyContent: 'flex-start', gap: 8, fontSize: 12 }}
               >
                 <Edit3 size={12} /> {aiLoading ? 'A melhorar...' : 'Melhorar texto'}
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => { setChatOpen(true); setShowAiPanel(false) }}
+                style={{ justifyContent: 'center', gap: 8, fontSize: 12, marginTop: 4 }}
+              >
+                <MessageSquare size={12} /> Conversar com IA
               </button>
             </div>
           )}

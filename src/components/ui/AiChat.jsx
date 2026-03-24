@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { X, Send, Bot, Loader2, Sparkles, AlertCircle } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import { useNotesStore } from '../../store/notesStore'
@@ -6,8 +7,9 @@ import { useAiStore } from '../../store/aiStore'
 import { chatWithNotes } from '../../services/aiApi'
 
 export default function AiChat() {
-  const { isChatOpen, setChatOpen } = useUiStore()
-  const { notes } = useNotesStore()
+  const navigate = useNavigate()
+  const { isChatOpen, setChatOpen, setEditorOpen } = useUiStore()
+  const { notes, setActiveNote } = useNotesStore()
   const { hasApiKey } = useAiStore()
   
   const [messages, setMessages] = useState([])
@@ -58,6 +60,49 @@ export default function AiChat() {
     }
   }
 
+  const handleLinkClick = (title) => {
+    const foundNote = notes.find(n => n.title?.toLowerCase() === title.toLowerCase())
+    if (foundNote) {
+      setActiveNote(foundNote)
+      setEditorOpen(true)
+      navigate(`/note/${foundNote.id}`)
+      if (window.innerWidth < 768) {
+        setChatOpen(false)
+      }
+    }
+  }
+
+  const renderMessageContent = (msg) => {
+    if (!msg.content) return null
+    if (msg.role === 'user') return msg.content
+
+    const parts = msg.content.split(/(\[\[.*?\]\])/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('[[') && part.endsWith(']]')) {
+        const title = part.substring(2, part.length - 2)
+        const exists = notes.some(n => n.title?.toLowerCase() === title.toLowerCase())
+        
+        return (
+          <button
+            key={i}
+            onClick={() => handleLinkClick(title)}
+            style={{
+              background: 'none', border: 'none', padding: 0,
+              color: exists ? 'var(--accent)' : 'inherit',
+              textDecoration: exists ? 'underline' : 'none',
+              cursor: exists ? 'pointer' : 'default',
+              fontSize: 'inherit', fontWeight: 600,
+              display: 'inline', margin: 0
+            }}
+          >
+            {exists ? title : part}
+          </button>
+        )
+      }
+      return <span key={i}>{part}</span>
+    })
+  }
+
   return (
     <div style={{
       position: 'fixed', right: 20, bottom: 20, zIndex: 100,
@@ -98,7 +143,7 @@ export default function AiChat() {
               borderBottomLeftRadius: msg.role === 'assistant' ? 2 : 12,
               fontSize: 13, lineHeight: 1.4, whiteSpace: 'pre-wrap'
             }}>
-              {msg.content}
+              {renderMessageContent(msg)}
             </div>
           ))
         )}

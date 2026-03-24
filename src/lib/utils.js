@@ -1,6 +1,13 @@
 import { formatDistanceToNow, format, isToday, isYesterday } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
+export function normalizeText(text) {
+  if (!text) return ''
+  return text.toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return 'Sem data'
   const date = new Date(dateStr)

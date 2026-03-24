@@ -1,4 +1,5 @@
 import { useAiStore, AI_PROVIDERS } from '../store/aiStore'
+import { normalizeText } from '../lib/utils'
 
 function getProviderConfig(provider) {
   const configs = {
@@ -160,25 +161,42 @@ Retorne apenas o texto formatado. Não inclua conversação, apenas o texto brut
 export async function chatWithNotes(chatHistory, allNotes) {
   // Pega a última pergunta do usuário para usar como termo de busca
   const lastUserMsg = [...chatHistory].reverse().find(m => m.role === 'user')?.content || ''
-  const searchTerms = lastUserMsg.toLowerCase().split(/[\\W_]+/).filter(w => w.length > 3)
+  
+  // Stopwords comuns em português que não agregam valor à busca semântica léxica
+  const stopwords = new Set(['como', 'onde', 'esta', 'estao', 'que', 'para', 'com', 'nesta', 'neste', 'pelo', 'pela', 'mais', 'sobre', 'quem', 'qual', 'quais', 'esse', 'essa', 'este', 'esta', 'tudo'])
+  
+  const searchTerms = normalizeText(lastUserMsg)
+    .split(/[\W_]+/)
+    .filter(w => w.length >= 2 && !stopwords.has(w))
 
   const activeNotes = allNotes.filter(n => !n.isDeleted)
   
-  // Pontua as notas: ganha ponto quem tiver as palavras da pergunta (busca textual simples)
+  // Pontua as notas com base na relevância (Pesos: Título > Tags > Conteúdo)
   const scoredNotes = activeNotes.map(n => {
-    const text = ((n.title || '') + ' ' + (n.content || '')).toLowerCase()
+    const title = normalizeText(n.title || '')
+    const content = normalizeText(n.content || '')
+    const tags = (n.tags || []).map(t => normalizeText(t)).join(' ')
+    
     let score = 0
     searchTerms.forEach(term => {
-      // Pequena verificação: se a palavra exata existir
-      if (text.includes(term)) score += 1
+      // Peso altíssimo para Título
+      if (title.includes(term)) score += 20
+      // Peso alto para Tags
+      if (tags.includes(term)) score += 15
+      // Peso moderado para Conteúdo
+      if (content.includes(term)) score += 5
     })
+    
     // Desempate: notas mais recentes ganham frações de ponto
-    const timeScore = new Date(n.createdAt || 0).getTime() / 1e15
+    const timeScore = new Date(n.updatedAt || n.createdAt || 0).getTime() / 1e15
     return { ...n, score: score + timeScore }
   })
 
-  // Ordena pelas mais relevantes primeiro
+  // Ordena pelas mais relevantes primeiro. Filtra quem tem score 0 (opcional, mas bom se houver mt nota)
   scoredNotes.sort((a, b) => b.score - a.score)
+  
+  // Se não encontrou nada relevante, talvez queira pegar as últimas modificadas de qualquer forma? 
+  // Por enquanto, confiamos no scoring.
 
   // Limita o contexto a aprox 250.000 caracteres (~60-70k tokens)
   const MAX_CHARS = 250000
@@ -198,7 +216,8 @@ export async function chatWithNotes(chatHistory, allNotes) {
 
   const systemPrompt = `Você é o assistente inteligente do BartNotes, um "Segundo Cérebro" do usuário.
 Responda às perguntas do usuário preferencialmente com base nas anotações fornecidas abaixo (que foram filtradas por relevância do sistema).
-Seja conciso, direto e amigável. Se a resposta requerer conhecimento externo ou a nota não contiver a resposta, você pode usar seu conhecimento geral, mas sempre mencione quando estiver fazendo isso.
+Sempre que citar uma nota específica que faça parte do contexto fornecido, use o formato [[Título da Nota]] para criar um link clicável.
+Seja conciso, direto e amigável. Se a resposta requerer conhecimento externo ou a nota não contiver a resposta, mencione isso.
 
 NOTAS DO USUÁRIO SELECIONADAS:
 ${notesContext}`
