@@ -151,15 +151,17 @@ export default function NoteList() {
   return (
     <div className="note-list-panel">
       {/* Header */}
-      <div style={{ padding: '14px 14px 10px', borderBottom: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <h2 style={{
-            fontFamily: "'Playfair Display', serif",
-            fontSize: 16, fontWeight: 600, margin: 0, flex: 1,
-            color: 'var(--text-primary)',
-          }}>
-            {FILTER_LABELS[filter] || 'Notas'}
-          </h2>
+      <div style={{ 
+        height: 52, padding: '0 16px', display: 'flex', alignItems: 'center', 
+        borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 
+      }}>
+        <h2 style={{
+          fontSize: 14, fontWeight: 600, margin: 0, flex: 1,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.01em'
+        }}>
+          {FILTER_LABELS[filter] || 'Notas'}
+        </h2>
           {filter === 'deleted' && notes.length > 0 && selectedNoteIds.length === 0 && (
             <button
               className="btn btn-ghost"
@@ -197,12 +199,13 @@ export default function NoteList() {
               </button>
             </div>
           )}
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '2px 7px', borderRadius: 10 }}>
-            {selectedNoteIds.length > 0 ? `${selectedNoteIds.length}/${notes.length}` : notes?.length || 0}
-          </span>
-        </div>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '2px 7px', borderRadius: 10 }}>
+          {selectedNoteIds.length > 0 ? `${selectedNoteIds.length}/${notes.length}` : notes?.length || 0}
+        </span>
+      </div>
 
-        {/* Search */}
+      {/* Search - Agora com padding lateral fixo de 16px para alinhar com o Linear */}
+      <div style={{ padding: '8px 16px 12px', background: 'var(--bg-secondary)' }}>
         <div style={{ position: 'relative' }}>
           <Search size={13} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
@@ -210,7 +213,7 @@ export default function NoteList() {
             placeholder="Buscar notas…"
             value={localSearch}
             onChange={e => handleSearch(e.target.value)}
-            style={{ paddingLeft: 30, paddingRight: localSearch ? 28 : 12, fontSize: 12 }}
+            style={{ paddingLeft: 30, paddingRight: localSearch ? 28 : 12, fontSize: 12, minHeight: 32, borderRadius: 6 }}
           />
           {localSearch && (
             <button
@@ -221,8 +224,6 @@ export default function NoteList() {
             </button>
           )}
         </div>
-
-
       </div>
 
       {/* Notes */}

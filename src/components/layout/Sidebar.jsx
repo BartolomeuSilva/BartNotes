@@ -102,10 +102,10 @@ export default function Sidebar({ onClose }) {
   return (
     <nav className="sidebar-content" style={{ height: '100%' }}>
       {/* Logo */}
-      <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ height: 52, padding: '0 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src={logoImg} alt="BartNotes" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
-          <span style={{ fontFamily: "'Playfair Display', serif", fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>
+          <img src={logoImg} alt="BartNotes" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover' }} />
+          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             BartNotes
           </span>
         </div>

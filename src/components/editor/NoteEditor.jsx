@@ -408,7 +408,7 @@ export default function NoteEditor({ noteId }) {
       {!isFocusMode && (
       <div style={{
         display: 'flex', alignItems: 'center', gap: 2,
-        padding: '8px 12px', borderBottom: '1px solid var(--border-subtle)',
+        height: 52, padding: '0 16px', borderBottom: '1px solid var(--border-subtle)',
         background: 'var(--bg-primary)', flexShrink: 0, overflow: 'hidden',
       }}>
         {/* Mobile back */}
