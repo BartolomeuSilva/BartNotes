@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Send, Bot, Loader2, Sparkles, AlertCircle } from 'lucide-react'
+import { X, Send, Bot, Loader2, Sparkles, AlertCircle, Trash2, RotateCcw } from 'lucide-react'
 import { useUiStore } from '../../store/uiStore'
 import { useNotesStore } from '../../store/notesStore'
 import { useAiStore } from '../../store/aiStore'
+import { useChatStore } from '../../store/chatStore'
 import { chatWithNotes } from '../../services/aiApi'
+import { normalizeText } from '../../lib/utils'
 
 export default function AiChat() {
   const navigate = useNavigate()
   const { isChatOpen, setChatOpen, setEditorOpen } = useUiStore()
   const { notes, setActiveNote } = useNotesStore()
   const { hasApiKey } = useAiStore()
+  const { messages, addMessage, setCache, getCache, clearHistory } = useChatStore()
   
-  const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -37,15 +39,32 @@ export default function AiChat() {
 
     setError(null)
     const userMessage = { role: 'user', content: input.trim() }
-    const newMessages = [...messages, userMessage]
+    const normalizedInput = normalizeText(userMessage.content)
     
-    setMessages(newMessages)
+    // 1. Adiciona mensagem do usuário
+    addMessage(userMessage)
     setInput('')
-    setIsLoading(true)
 
+    // 2. Verifica Cache
+    const cachedReply = getCache(normalizedInput)
+    if (cachedReply) {
+      // Simula um loading rápido para UX
+      setIsLoading(true)
+      setTimeout(() => {
+        addMessage({ role: 'assistant', content: cachedReply })
+        setIsLoading(false)
+      }, 500)
+      return
+    }
+
+    // 3. Chamada à API
+    setIsLoading(true)
     try {
-      const replyContent = await chatWithNotes(newMessages, notes)
-      setMessages([...newMessages, { role: 'assistant', content: replyContent }])
+      // Passa as mensagens atuais + a nova
+      const replyContent = await chatWithNotes([...messages, userMessage], notes)
+      addMessage({ role: 'assistant', content: replyContent })
+      // Salva no Cache
+      setCache(normalizedInput, replyContent)
     } catch (e) {
       setError(e.message || 'Erro ao comunicar com a IA.')
     } finally {
@@ -120,9 +139,21 @@ export default function AiChat() {
         <span style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Sparkles size={16} color="var(--accent)" /> Segundo Cérebro (IA)
         </span>
-        <button className="btn btn-ghost" style={{ padding: 4 }} onClick={() => setChatOpen(false)}>
-          <X size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {messages.length > 0 && (
+            <button 
+              className="btn btn-ghost" 
+              title="Limpar Histórico"
+              style={{ padding: 4, color: 'var(--text-muted)' }} 
+              onClick={clearHistory}
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+          <button className="btn btn-ghost" style={{ padding: 4 }} onClick={() => setChatOpen(false)}>
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
