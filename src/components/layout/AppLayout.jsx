@@ -74,6 +74,9 @@ export default function AppLayout() {
       const { notes } = useNotesStore.getState()
       const existing = notes.find(n => n.id === id)
       
+      // No mobile, se houver ID na URL, o editor DEVE estar aberto
+      setEditorOpen(true)
+
       if (existing) {
         setActiveNote(existing)
       } else {
@@ -83,8 +86,14 @@ export default function AppLayout() {
       }
     } else {
       setActiveNote(null)
+      
+      // Se voltamos para o root e não é uma página utilitária (tasks, graph, etc), fecha o editor
+      const path = window.location.pathname
+      if (path === '/' || path.startsWith('/tags/')) {
+        setEditorOpen(false)
+      }
     }
-  }, [id])
+  }, [id, setEditorOpen])
 
   if (isFocusMode) {
     return (

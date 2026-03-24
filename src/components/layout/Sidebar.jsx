@@ -29,7 +29,7 @@ export default function Sidebar({ onClose }) {
     if (tagId) setActiveTag(tagId)
     
     // Abre o painel full-screen no mobile
-    if (path === '/tasks' || path === '/graph' || path === '/manual') {
+    if (path === '/tasks' || path === '/graph' || path === '/manual' || path.includes('/note/')) {
       setEditorOpen(true)
     } else {
       // Volta pra lista de notas
