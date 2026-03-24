@@ -5,7 +5,7 @@
 @layer base {
   :root {
     --bg-primary: #ffffff;
-    --bg-secondary: #f9f9fab;
+    --bg-secondary: #f9f9fa;
     --bg-tertiary: #f2f2f4;
     --bg-overlay: rgba(255, 255, 255, 0.85);
     --text-primary: #121217;

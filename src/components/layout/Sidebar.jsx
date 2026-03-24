@@ -99,7 +99,7 @@ export default function Sidebar({ onClose }) {
   }
 
   return (
-    <nav className="sidebar-content" style={{ height: '100vh' }}>
+    <nav className="sidebar-content" style={{ height: '100%' }}>
       {/* Logo */}
       <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
