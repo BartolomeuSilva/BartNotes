@@ -25,10 +25,10 @@
   }
 
   .dark {
-    --bg-primary: #0e0d11;
-    --bg-secondary: #17161b;
-    --bg-tertiary: #222127;
-    --bg-overlay: rgba(14, 13, 17, 0.85);
+    --bg-primary: #121314;
+    --bg-secondary: #101112;
+    --bg-tertiary: #1e1e20;
+    --bg-overlay: rgba(16, 17, 18, 0.85);
     --text-primary: #ededed;
     --text-secondary: #92929f;
     --text-muted: #64646f;
