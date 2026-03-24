@@ -10,7 +10,7 @@ import { notesApi } from '../../services/supabaseApi'
 
 export default function AppLayout() {
   const { id } = useParams()
-  const { sidebarOpen, editorOpen, setSidebarOpen, isFocusMode } = useUiStore()
+  const { sidebarOpen, editorOpen, setSidebarOpen, setEditorOpen, isFocusMode } = useUiStore()
   const { fetchNotes, setActiveNote, subscribeToNotes } = useNotesStore()
   const { fetchTags, subscribeToTags } = useTagsStore()
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
