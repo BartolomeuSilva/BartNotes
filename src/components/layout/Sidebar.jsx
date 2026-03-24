@@ -27,7 +27,15 @@ export default function Sidebar({ onClose }) {
   const nav = (path, filterVal, tagId = null) => {
     if (filterVal) setFilter(filterVal)
     if (tagId) setActiveTag(tagId)
-    if (path === '/tasks') setEditorOpen(true)
+    
+    // Abre o painel full-screen no mobile
+    if (path === '/tasks' || path === '/graph' || path === '/manual') {
+      setEditorOpen(true)
+    } else {
+      // Volta pra lista de notas
+      setEditorOpen(false)
+    }
+    
     navigate(path)
     onClose?.()
   }
