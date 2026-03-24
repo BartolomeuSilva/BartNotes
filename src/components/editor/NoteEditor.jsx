@@ -11,7 +11,7 @@ import { useUiStore } from '../../store/uiStore'
 import { useAiStore } from '../../store/aiStore'
 import { useVoiceStore } from '../../store/voiceStore'
 import { notesApi } from '../../services/supabaseApi'
-import { generateSummary, suggestTags, improveText, formatVoiceTranscript, transcribeAudio } from '../../services/aiApi'
+import { generateSummary, suggestTags, improveText, formatVoiceTranscript, transcribeAudio, generateCoverImage } from '../../services/aiApi'
 import { debounce, markdownToHtml, countWords, countChars, extractTitle, TAG_COLORS } from '../../lib/utils'
 import ConfirmModal from '../ui/ConfirmModal'
 
@@ -31,6 +31,7 @@ export default function NoteEditor({ noteId }) {
 
   const [titleLine, setTitleLine] = useState('')
   const [bodyContent, setBodyContent] = useState('')
+  const [imageUrl, setImageUrl] = useState('') // Nova: Capa da nota
   const [viewMode, setViewMode] = useState('edit') // 'edit' | 'preview' | 'split'
   const [showTagPicker, setShowTagPicker] = useState(false)
   const [showVersions, setShowVersions] = useState(false)
@@ -149,6 +150,18 @@ export default function NoteEditor({ noteId }) {
     } catch (e) { toast(e.message) }
     finally { setAiLoading(false) }
   }
+
+  const handleAiGenerateCover = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key'); return }
+    setAiLoading(true)
+    try {
+      const url = await generateCoverImage(titleLine || 'Abstrato')
+      setImageUrl(url)
+      if (activeNote) await updateNote(activeNote.id, { imageUrl: url })
+      toast('Capa gerada com sucesso!')
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
   
   // Slash Commands State
   const [slashMenu, setSlashMenu] = useState({ isOpen: false, x: 0, y: 0, query: '' })
@@ -179,8 +192,52 @@ export default function NoteEditor({ noteId }) {
   const titleRef = useRef(null)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
+  const editorRef = useRef(null) // Para delegação de eventos
+
   // Selection Menu State
   const [selectionMenu, setSelectionMenu] = useState({ isOpen: false, x: 0, y: 0, text: '' })
+  
+  // Link Preview State
+  const [hoverPreview, setHoverPreview] = useState({ isOpen: false, x: 0, y: 0, note: null })
+
+  // Event delegation para links no Preview
+  useEffect(() => {
+    const handleMouseOver = (e) => {
+      const link = e.target.closest('.internal-link')
+      if (link) {
+        const title = link.getAttribute('data-notetitle')
+        const found = notes.find(n => !n.isDeleted && n.title?.toLowerCase() === title?.toLowerCase())
+        if (found) {
+          const rect = link.getBoundingClientRect()
+          setHoverPreview({
+            isOpen: true,
+            x: rect.left,
+            y: rect.top - 10,
+            note: found
+          })
+        }
+      }
+    }
+
+    const handleMouseOut = (e) => {
+      const link = e.target.closest('.internal-link')
+      if (link) {
+        setHoverPreview(prev => ({ ...prev, isOpen: false }))
+      }
+    }
+
+    const container = editorRef.current
+    if (container) {
+      container.addEventListener('mouseover', handleMouseOver)
+      container.addEventListener('mouseout', handleMouseOut)
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener('mouseover', handleMouseOver)
+        container.removeEventListener('mouseout', handleMouseOut)
+      }
+    }
+  }, [notes, editorRef.current])
 
   const handleTextSelection = (e) => {
     const { selectionStart, selectionEnd, value } = e.target
@@ -208,6 +265,7 @@ export default function NoteEditor({ noteId }) {
   // Sync content when note changes
   useEffect(() => {
     if (activeNote) {
+      setImageUrl(activeNote.imageUrl || '')
       const raw = activeNote.content || ''
       const newlineIdx = raw.indexOf('\n')
       if (newlineIdx === -1) {
@@ -589,6 +647,8 @@ export default function NoteEditor({ noteId }) {
 
         <div style={{ flex: 1 }} />
 
+        <div style={{ flex: 1 }} />
+
         {/* AI Button */}
 
         {/* Upload Audio Button */}
@@ -692,17 +752,41 @@ export default function NoteEditor({ noteId }) {
       )}
 
       {/* Editor area - Focus Mode Layout */}
-      <div style={{ 
-        flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0,
-        maxWidth: isFocusMode ? 850 : '100%',
-        margin: isFocusMode ? '0 auto' : 0,
-        width: '100%',
-        paddingTop: isFocusMode ? 60 : 0,
-        transition: 'all 0.3s ease-in-out'
-      }}>
-        {/* Edit pane */}
-        {(viewMode === 'edit' || viewMode === 'split') && (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: viewMode === 'split' ? '1px solid var(--border-subtle)' : 'none' }}>
+      <div 
+        ref={editorRef}
+        style={{ 
+          flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', minHeight: 0,
+          maxWidth: isFocusMode ? 850 : '100%',
+          margin: isFocusMode ? '0 auto' : 0,
+          width: '100%',
+          paddingTop: isFocusMode ? 60 : 0,
+          transition: 'all 0.3s ease-in-out',
+          position: 'relative'
+        }}
+      >
+        {/* Note Cover Image */}
+        {imageUrl && (
+          <div style={{ width: '100%', height: isFocusMode ? 300 : 220, overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+            <img 
+              src={imageUrl} 
+              alt="Capa da nota" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 80, background: 'linear-gradient(to top, var(--bg-primary), transparent)' }} />
+            <button 
+              className="btn btn-ghost" 
+              onClick={() => { setImageUrl(''); updateNote(activeNote.id, { imageUrl: null }) }}
+              style={{ position: 'absolute', top: 12, right: 12, background: 'rgba(0,0,0,0.3)', color: '#fff', borderRadius: '50%', padding: 6 }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+          {/* Edit pane */}
+          {(viewMode === 'edit' || viewMode === 'split') && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: viewMode === 'split' ? '1px solid var(--border-subtle)' : 'none' }}>
             <textarea
               ref={titleRef}
               value={titleLine}
@@ -846,6 +930,7 @@ export default function NoteEditor({ noteId }) {
           </div>
         )
       })()}
+      </div>
 
       {/* Footer */}
       {!isFocusMode && (
@@ -1023,6 +1108,14 @@ export default function NoteEditor({ noteId }) {
                 <Edit3 size={12} /> {aiLoading ? 'A melhorar...' : 'Melhorar texto'}
               </button>
               <button 
+                className="btn" 
+                onClick={handleAiGenerateCover}
+                disabled={aiLoading}
+                style={{ justifyContent: 'flex-start', gap: 8, fontSize: 12 }}
+              >
+                <Globe size={12} /> {aiLoading ? 'A pintar...' : 'Gerar Capa com IA'}
+              </button>
+              <button 
                 className="btn btn-primary" 
                 onClick={() => { setChatOpen(true); setShowAiPanel(false) }}
                 style={{ justifyContent: 'center', gap: 8, fontSize: 12, marginTop: 4 }}
@@ -1166,6 +1259,55 @@ export default function NoteEditor({ noteId }) {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Link Preview Hover Card */}
+      {hoverPreview.isOpen && (
+        <div 
+          className="link-preview-card"
+          style={{ 
+            position: 'fixed', 
+            top: hoverPreview.y - 120, // Acima do link
+            left: hoverPreview.x,
+            zIndex: 9999,
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            width: 280,
+            padding: 16,
+            boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+            pointerEvents: 'none',
+            backdropFilter: 'blur(10px)',
+            animation: 'fadeInScale 0.2s ease-out'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <div style={{ padding: 6, background: 'var(--bg-tertiary)', borderRadius: 6 }}>
+              <FileText size={14} color="var(--accent)" />
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {hoverPreview.note.title}
+            </div>
+          </div>
+          <div style={{ 
+            fontSize: 13, 
+            color: 'var(--text-secondary)',
+            lineHeight: 1.5,
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden'
+          }}>
+            {hoverPreview.note.content?.split('\n').slice(1).join(' ').substring(0, 150) || 'Sem conteúdo'}
+          </div>
+          <div style={{ marginTop: 12, display: 'flex', gap: 4 }}>
+            {(hoverPreview.note.tags || []).slice(0, 2).map(t => (
+              <span key={t.id} style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, background: `${t.color}20`, color: t.color, fontWeight: 600 }}>
+                {t.name}
+              </span>
+            ))}
+          </div>
         </div>
       )}
     </div>

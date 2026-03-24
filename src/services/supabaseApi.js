@@ -261,7 +261,8 @@ export const notesApi = {
       content,
       word_count: wordCount,
       ...(body.isPinned !== undefined && { is_pinned: body.isPinned }),
-      ...(body.isArchived !== undefined && { is_archived: body.isArchived })
+      ...(body.isArchived !== undefined && { is_archived: body.isArchived }),
+      ...(body.imageUrl !== undefined && { image_url: body.imageUrl })
     }
 
     const { error } = await supabase

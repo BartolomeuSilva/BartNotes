@@ -175,20 +175,29 @@ export async function chatWithNotes(chatHistory, allNotes) {
   const scoredNotes = activeNotes.map(n => {
     const title = normalizeText(n.title || '')
     const content = normalizeText(n.content || '')
-    const tags = (n.tags || []).map(t => normalizeText(t)).join(' ')
+    const tagStr = (n.tags || []).map(t => normalizeText(t.name)).join(' ')
     
     let score = 0
     searchTerms.forEach(term => {
-      // Peso altíssimo para Título
-      if (title.includes(term)) score += 20
-      // Peso alto para Tags
-      if (tags.includes(term)) score += 15
-      // Peso moderado para Conteúdo
+      // 1. Pesos para Título
+      if (title === term) score += 40 // Match exato no título é prioridade máxima
+      else if (title.startsWith(term)) score += 25
+      else if (title.includes(term)) score += 15
+
+      // 2. Pesos para Tags
+      if (tagStr.includes(term)) score += 20
+
+      // 3. Pesos para Conteúdo (Fuzzy simples: se o termo está no conteúdo)
       if (content.includes(term)) score += 5
+      
+      // Bônus: Se o termo for grande (mais específico) e der match
+      if (term.length > 5 && (title.includes(term) || content.includes(term))) {
+        score += 5
+      }
     })
     
     // Desempate: notas mais recentes ganham frações de ponto
-    const timeScore = new Date(n.updatedAt || n.createdAt || 0).getTime() / 1e15
+    const timeScore = new Date(n.updatedAt || n.createdAt || 0).getTime() / 1e16
     return { ...n, score: score + timeScore }
   })
 
@@ -228,6 +237,39 @@ ${notesContext}`
   ]
 
   return callAI(messages)
+}
+
+export async function generateCoverImage(prompt) {
+  const { apiKey, provider, customEndpoint } = useAiStore.getState()
+  if (!apiKey) throw new Error('API key não configurada')
+
+  let url = 'https://api.openai.com/v1/images/generations'
+  if (provider === 'custom' && customEndpoint) {
+    url = customEndpoint.replace('/chat/completions', '/images/generations')
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: "dall-e-3",
+      prompt: `A beautiful, minimalist, artistic and abstract book cover illustration for a digital note titled: "${prompt}". Style: clean, premium, modern, subtle gradients, high resolution. No text in the image.`,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard"
+    })
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error?.message || err.message || `Erro na API de Imagem (${response.status})`)
+  }
+
+  const data = await response.json()
+  return data.data?.[0]?.url || ''
 }
 
 export async function transcribeAudio(file) {
