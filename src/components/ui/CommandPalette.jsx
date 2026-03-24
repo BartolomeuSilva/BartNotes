@@ -134,7 +134,7 @@ export default function CommandPalette() {
           <input 
             ref={inputRef}
             className="input"
-            style={{ width: '100%', height: 64, border: 'none', background: 'transparent', fontSize: 18, boxShadow: 'none' }}
+            style={{ flex: 1, height: 64, border: 'none', background: 'transparent', fontSize: 18, boxShadow: 'none', outline: 'none' }}
             placeholder="O que você precisa?"
             value={query}
             onChange={(e) => {
@@ -143,7 +143,7 @@ export default function CommandPalette() {
             }}
             onKeyDown={handleKeyDown}
           />
-          <div style={{ display: 'flex', gap: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>
+          <div style={{ display: 'flex', gap: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 600, flexShrink: 0 }}>
             <span style={{ padding: '2px 6px', background: 'var(--bg-tertiary)', borderRadius: 4 }}>ESC</span>
           </div>
         </div>

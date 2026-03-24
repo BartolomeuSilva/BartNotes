@@ -2,7 +2,7 @@
 
 # Configurações
 IMAGE_NAME="bartolomeusilva/bartnotes"
-TAG="v2.1"
+TAG="v2.2"
 
 # Cores para o terminal
 GREEN='\033[0;32m'

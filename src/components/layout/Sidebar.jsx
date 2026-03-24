@@ -18,7 +18,7 @@ export default function Sidebar({ onClose }) {
   const location = useLocation()
   const { user, logout } = useAuthStore()
   const { tags } = useTagsStore()
-  const { filter, activeTagId, setFilter, setActiveTag, createNote } = useNotesStore()
+  const { notes, filter, activeTagId, setFilter, setActiveTag, createNote, updateNote } = useNotesStore()
   const { theme, toggleTheme, toast, setChatOpen, setEditorOpen } = useUiStore()
   const { setOpen } = useClipperStore()
   const [tagsOpen, setTagsOpen] = useState(true)
@@ -72,7 +72,7 @@ export default function Sidebar({ onClose }) {
         padding: '7px 12px', borderRadius: 6, width: '100%',
         background: 'transparent',
         color: isAccent ? 'var(--accent)' : 'var(--text-secondary)',
-        border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+        border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit',
         fontWeight: 400, textAlign: 'left',
         transition: 'all 0.1s',
       }}
@@ -98,7 +98,7 @@ export default function Sidebar({ onClose }) {
           padding: '7px 12px', borderRadius: 6, width: '100%',
           background: isActive ? 'var(--bg-tertiary)' : 'transparent',
           color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-          border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+          border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit',
           fontWeight: isActive ? 500 : 400, textAlign: 'left',
           transition: 'all 0.1s',
         }}
@@ -120,7 +120,7 @@ export default function Sidebar({ onClose }) {
       <div style={{ height: 52, padding: '0 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <img src={logoImg} alt="BartNotes" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'cover' }} />
-          <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          <span style={{ fontWeight: 600, fontSize: 12.5, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
             BartNotes
           </span>
         </div>
@@ -153,7 +153,7 @@ export default function Sidebar({ onClose }) {
               fontWeight: 600, justifyContent: 'center', borderRadius: 8,
               boxShadow: '0 4px 12px rgba(79, 70, 229, 0.4)',
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px',
-              border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+              border: 'none', cursor: 'pointer', fontSize: 12.5, fontFamily: 'inherit',
               width: '100%', transition: 'opacity 0.15s'
             }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
@@ -210,7 +210,7 @@ export default function Sidebar({ onClose }) {
         <button
           onClick={toggleTheme}
           className="btn btn-ghost"
-          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 13 }}
+          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 12.5 }}
         >
           {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
           {theme === 'dark' ? 'Tema claro' : 'Tema escuro'}
@@ -218,7 +218,7 @@ export default function Sidebar({ onClose }) {
         <button
           onClick={() => { navigate('/settings'); onClose?.() }}
           className="btn btn-ghost"
-          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 13 }}
+          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 12.5 }}
         >
           <Settings size={14} />
           Configurações
@@ -226,7 +226,7 @@ export default function Sidebar({ onClose }) {
         <button
           onClick={logout}
           className="btn btn-ghost"
-          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 13, color: 'var(--text-muted)' }}
+          style={{ width: '100%', justifyContent: 'flex-start', gap: 8, fontSize: 12.5, color: 'var(--text-muted)' }}
         >
           <LogOut size={14} />
           Sair
@@ -243,7 +243,7 @@ export default function Sidebar({ onClose }) {
               {user.username?.charAt(0).toUpperCase()}
             </div>
             <div style={{ minWidth: 0 }}>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ margin: 0, fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user.username}
               </p>
               <p style={{ margin: 0, fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

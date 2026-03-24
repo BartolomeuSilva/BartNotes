@@ -108,6 +108,48 @@
   input {
     -webkit-user-select: text;
     user-select: text;
+    flex-shrink: 0;
+  }
+
+  /* ── Selection AI Menu ── */
+  .selection-menu {
+    position: fixed;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: #111111;
+    color: #ffffff;
+    padding: 2px;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: slideUp 0.1s ease-out;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .selection-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: all 0.1s;
+    user-select: none;
+  }
+
+  .selection-item:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .selection-divider {
+    width: 1px;
+    height: 14px;
+    background: rgba(255,255,255,0.2);
+    margin: 0 2px;
   }
 }
 
@@ -631,7 +673,7 @@
 
     .editor-textarea {
       padding: 20px 16px;
-      font-size: 16px;
+    font-size: 13px;
     }
 
     .markdown-preview {
@@ -746,5 +788,54 @@
     .note-item {
       padding: 16px;
     }
+  }
+
+  /* ── Slash Menu ── */
+  .slash-menu {
+    position: fixed;
+    z-index: 1000;
+    width: 240px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    overflow: hidden;
+    padding: 6px;
+    animation: slideDown 0.1s ease-out;
+  }
+
+  .slash-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-primary);
+    transition: background 0.1s;
+    user-select: none;
+  }
+
+  .slash-item.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .slash-item.active .slash-item-icon {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+  }
+
+  .slash-item-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: var(--bg-tertiary);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
   }
 }

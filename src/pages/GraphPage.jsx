@@ -2,10 +2,12 @@ import { useRef, useMemo, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ForceGraph2D from 'react-force-graph-2d'
 import { useNotesStore } from '../store/notesStore'
+import { useTagsStore } from '../store/tagsStore'
 import { useUiStore } from '../store/uiStore'
 
 export default function GraphPage() {
   const { notes } = useNotesStore()
+  const { tags } = useTagsStore()
   const { theme } = useUiStore()
   const navigate = useNavigate()
   const containerRef = useRef(null)
@@ -34,8 +36,19 @@ export default function GraphPage() {
     
     const activeNotes = notes.filter(n => !n.isDeleted)
     const titleToId = {}
+
+    // 1. Criar nós de Tags (Nodes)
+    tags.forEach(t => {
+      nodes.push({
+        id: `tag-${t.id}`,
+        name: `#${t.name}`,
+        val: 1.5,
+        color: t.color || '#94a3b8',
+        type: 'tag'
+      })
+    })
     
-    // 1. Criar nós (Nodes)
+    // 2. Criar nós de Notas (Nodes)
     activeNotes.forEach(n => {
       const title = n.title.trim()
       if (title) {
@@ -44,12 +57,28 @@ export default function GraphPage() {
       nodes.push({
         id: n.id,
         name: title || 'Sem Título',
-        val: 1, // volume da bolinha base
-        color: n.tags?.[0]?.color || (theme === 'dark' ? '#818cf8' : '#4f46e5')
+        val: 1,
+        color: n.tags?.[0]?.color || (theme === 'dark' ? '#818cf8' : '#4f46e5'),
+        type: 'note'
       })
+
+      // Link Nota -> Tag
+      if (n.tags && n.tags.length > 0) {
+        n.tags.forEach(t => {
+          links.push({
+            source: n.id,
+            target: `tag-${t.id}`,
+            value: 1
+          })
+          
+          // Dar peso à tag se ela tiver notas associadas
+          const tagNode = nodes.find(nd => nd.id === `tag-${t.id}`)
+          if (tagNode) tagNode.val += 0.5
+        })
+      }
     })
 
-    // 2. Criar links (Arestas) parseando Backlinks
+    // 3. Criar links (Arestas) parseando Backlinks
     activeNotes.forEach(n => {
       if (!n.content) return
       
@@ -60,9 +89,8 @@ export default function GraphPage() {
         const targetId = titleToId[targetTitle]
         
         if (targetId) {
-          links.push({ source: n.id, target: targetId })
+          links.push({ source: n.id, target: targetId, value: 2 })
           
-          // Aumenta a gravidade e o volume do nó citado
           const targetNode = nodes.find(nd => nd.id === targetId)
           if (targetNode) targetNode.val += 0.8
         }
@@ -70,7 +98,7 @@ export default function GraphPage() {
     })
 
     return { nodes, links }
-  }, [notes, theme])
+  }, [notes, tags, theme])
 
   const backgroundColor = theme === 'dark' ? 'var(--bg-primary)' : 'var(--bg-secondary)'
   const textColor = theme === 'dark' ? '#f8fafc' : '#0f172a'
@@ -100,34 +128,54 @@ export default function GraphPage() {
           linkColor={() => linkColor}
           linkWidth={1.5}
           backgroundColor={backgroundColor}
-          onNodeClick={node => navigate(`/note/${node.id}`)}
+          onNodeClick={node => {
+            if (node.type === 'note') navigate(`/note/${node.id}`)
+          }}
           // Estilização profunda direto no Canvas 2D
           nodeCanvasObject={(node, ctx, globalScale) => {
             const label = node.name
+            const isTag = node.type === 'tag'
             const fontSize = Math.max(12 / globalScale, 2)
             const padding = fontSize * 0.4
-            const r = Math.min(Math.max(node.val, 1.5), 8) * 2 // Raio do nó
+            const r = Math.min(Math.max(node.val, 1.5), 10) * 2 // Raio do nó
             
             ctx.font = `600 ${fontSize}px Inter, sans-serif`
             ctx.textAlign = 'center'
             ctx.textBaseline = 'middle'
 
-            // Desenhar o Círculo (Nó)
-            ctx.beginPath()
-            ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false)
-            ctx.fillStyle = node.color
-            ctx.fill()
-            
-            // Halo de brilho se for muito popular
-            if (node.val > 2) {
+            if (isTag) {
+              // Desenhar um Losango para Tags
               ctx.beginPath()
-              ctx.arc(node.x, node.y, r * 1.5, 0, 2 * Math.PI, false)
-              ctx.fillStyle = `${node.color}33` // 20% opacity
+              ctx.moveTo(node.x, node.y - r * 1.2) // Topo
+              ctx.lineTo(node.x + r * 1.2, node.y) // Direita
+              ctx.lineTo(node.x, node.y + r * 1.2) // Baixo
+              ctx.lineTo(node.x - r * 1.2, node.y) // Esquerda
+              ctx.closePath()
+              ctx.fillStyle = node.color
               ctx.fill()
+              
+              // Borda sutil
+              ctx.strokeStyle = '#fff'
+              ctx.lineWidth = 1 / globalScale
+              ctx.stroke()
+            } else {
+              // Desenhar o Círculo (Nó de Nota)
+              ctx.beginPath()
+              ctx.arc(node.x, node.y, r, 0, 2 * Math.PI, false)
+              ctx.fillStyle = node.color
+              ctx.fill()
+              
+              // Halo de brilho se for muito popular
+              if (node.val > 2) {
+                ctx.beginPath()
+                ctx.arc(node.x, node.y, r * 1.5, 0, 2 * Math.PI, false)
+                ctx.fillStyle = `${node.color}33` // 20% opacity
+                ctx.fill()
+              }
             }
 
             // Apenas renderiza nomes se houver zoom suficiente ou se o nó for importante
-            if (globalScale >= 1.5 || node.val > 3) {
+            if (globalScale >= 1.5 || node.val > 3 || isTag) {
               const textY = node.y + r + fontSize + padding
               
               // Texto Shadow / Background
@@ -141,7 +189,8 @@ export default function GraphPage() {
               )
               
               // Texto Real
-              ctx.fillStyle = textColor
+              ctx.fillStyle = isTag ? node.color : textColor
+              ctx.font = isTag ? `800 ${fontSize}px Inter, sans-serif` : ctx.font
               ctx.fillText(label, node.x, textY)
             }
           }}

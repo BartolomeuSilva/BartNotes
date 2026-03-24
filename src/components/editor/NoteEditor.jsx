@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Pin, Archive, Trash2, Tag, Eye, Edit3, Copy, RotateCcw, ChevronLeft, MoreHorizontal, Upload,
   X, ChevronDown, ChevronRight, LogOut, Download, Globe, Sparkles, ListTodo, Network, BookOpen, Calendar, Plus,
-  Maximize, Clock, Mic, MicOff, Check, Loader2, MessageSquare
+  Maximize, Clock, Mic, MicOff, Check, Loader2, MessageSquare, Heading1, Heading2, Heading3, List, Square, Code, FileText, Wand2
 } from 'lucide-react'
 import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
@@ -43,6 +43,128 @@ export default function NoteEditor({ noteId }) {
   const [aiSummary, setAiSummary] = useState('')
   const [voiceTranscript, setVoiceTranscript] = useState('')
   const [isUploadingAudio, setIsUploadingAudio] = useState(false)
+  
+  const handleAddTag = async (tagId) => {
+    const currentTagIds = (activeNote.tags || []).map(t => t.id)
+    const newTagIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter(id => id !== tagId)
+      : [...currentTagIds, tagId]
+    await updateNote(activeNote.id, { tagIds: newTagIds })
+    toast('Tags atualizadas')
+  }
+
+  const handleCreateTag = async () => {
+    if (!newTagName.trim()) return
+    const tag = await createTag(newTagName.trim().toLowerCase(), selectedColor)
+    await handleAddTag(tag.id)
+    setNewTagName('')
+    setShowTagPicker(false)
+  }
+
+  const insertBlock = (prefix, suffix = '') => {
+    if (!textareaRef.current) return
+    const start = textareaRef.current.selectionStart
+    const end = textareaRef.current.selectionEnd
+    const contentBefore = bodyContent.substring(0, start - 1)
+    const contentAfter = bodyContent.substring(end)
+    const newBody = contentBefore + prefix + suffix + contentAfter
+    setBodyContent(newBody)
+    if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, newBody))
+    setSlashMenu({ ...slashMenu, isOpen: false })
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus()
+        const newPos = start - 1 + prefix.length
+        textareaRef.current.selectionStart = newPos
+        textareaRef.current.selectionEnd = newPos
+      }
+    }, 0)
+  }
+
+  const handleAiSummarize = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
+    setAiLoading(true)
+    try {
+      const summary = await generateSummary(getFullContent(titleLine, bodyContent))
+      setAiSummary(summary)
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
+
+  const handleAiSuggestTags = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
+    setAiLoading(true)
+    try {
+      const suggested = await suggestTags(getFullContent(titleLine, bodyContent))
+      for (const tagName of suggested) {
+        const existing = tags.find(t => t.name === tagName)
+        if (existing) {
+          await handleAddTag(existing.id)
+        } else {
+          const tag = await createTag(tagName, TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)])
+          await handleAddTag(tag.id)
+        }
+      }
+      toast('Tags sugeridas adicionadas')
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
+
+  const handleAiImprove = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
+    setAiLoading(true)
+    try {
+      const improved = await improveText(bodyContent)
+      setBodyContent(improved)
+      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, improved))
+      toast('Texto melhorado')
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
+
+  const handleAiImproveSelection = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key'); return }
+    if (!selectionMenu.text) return
+    setAiLoading(true)
+    try {
+      const improved = await improveText(selectionMenu.text)
+      const start = textareaRef.current.selectionStart
+      const end = textareaRef.current.selectionEnd
+      const newBody = bodyContent.substring(0, start) + improved + bodyContent.substring(end)
+      setBodyContent(newBody)
+      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, newBody))
+      toast('Seleção melhorada')
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
+
+  const handleAiSummarizeSelection = async () => {
+    if (!hasApiKey()) { toast('Configure a API Key'); return }
+    if (!selectionMenu.text) return
+    setAiLoading(true)
+    try {
+      const summary = await generateSummary(selectionMenu.text)
+      setAiSummary(summary)
+      setShowAiPanel(true)
+    } catch (e) { toast(e.message) }
+    finally { setAiLoading(false) }
+  }
+  
+  // Slash Commands State
+  const [slashMenu, setSlashMenu] = useState({ isOpen: false, x: 0, y: 0, query: '' })
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
+
+  const slashCommands = [
+    { id: 'h1', title: 'Título 1', icon: Heading1, action: () => insertBlock('# ') },
+    { id: 'h2', title: 'Título 2', icon: Heading2, action: () => insertBlock('## ') },
+    { id: 'h3', title: 'Título 3', icon: Heading3, action: () => insertBlock('### ') },
+    { id: 'todo', title: 'Tarefa', icon: Square, action: () => insertBlock('- [ ] ') },
+    { id: 'list', title: 'Lista', icon: List, action: () => insertBlock('- ') },
+    { id: 'code', title: 'Bloco de Código', icon: Code, action: () => insertBlock('```\n', '\n```') },
+    { id: 'ai-sum', title: 'IA: Resumir', icon: Wand2, action: handleAiSummarize },
+    { id: 'ai-tags', title: 'IA: Sugerir Tags', icon: Wand2, action: handleAiSuggestTags },
+    { id: 'ai-improve', title: 'IA: Melhorar Texto', icon: Wand2, action: handleAiImprove },
+  ]
 
   useEffect(() => {
     const handleEsc = (e) => {
@@ -57,6 +179,26 @@ export default function NoteEditor({ noteId }) {
   const titleRef = useRef(null)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
+  // Selection Menu State
+  const [selectionMenu, setSelectionMenu] = useState({ isOpen: false, x: 0, y: 0, text: '' })
+
+  const handleTextSelection = (e) => {
+    const { selectionStart, selectionEnd, value } = e.target
+    if (selectionStart !== selectionEnd) {
+      const selectedText = value.substring(selectionStart, selectionEnd).trim()
+      if (selectedText.length > 2) {
+        const { x, y } = getCursorXY(e.target, selectionEnd)
+        setSelectionMenu({
+          isOpen: true,
+          x: Math.min(x, window.innerWidth - 300),
+          y: Math.max(y - 50, 60), // Acima da seleção
+          text: selectedText
+        })
+        return
+      }
+    }
+    if (selectionMenu.isOpen) setSelectionMenu({ ...selectionMenu, isOpen: false })
+  }
 
   const getFullContent = (title, body) => {
     const t = title.replace(/\n/g, ' ')
@@ -111,11 +253,69 @@ export default function NoteEditor({ noteId }) {
 
   const handleChange = (e) => {
     const val = e.target.value
+    const selection = e.target.selectionStart
     setBodyContent(val)
     if (activeNote) debouncedSave(activeNote.id, getFullContent(titleLine, val))
+
+    // Detecção de Slash Command
+    const lastChar = val[selection - 1]
+    const beforeLast = val[selection - 2]
+    
+    if (lastChar === '/' && (!beforeLast || beforeLast === '\n' || beforeLast === ' ')) {
+      const { x, y } = getCursorXY(e.target, selection)
+      setSlashMenu({ isOpen: true, x, y, query: '' })
+      setSlashSelectedIndex(0)
+    } else if (slashMenu.isOpen) {
+      if (lastChar === ' ' || lastChar === '\n') {
+        setSlashMenu({ ...slashMenu, isOpen: false })
+      } else {
+        // Poderíamos filtrar por query aqui se quiséssemos busca no menu
+        setSlashMenu({ ...slashMenu, query: '' }) 
+      }
+    }
   }
 
+  const getCursorXY = (input, selectionPoint) => {
+    const { offsetLeft, offsetTop } = input
+    // Simples estimativa baseada na linha ocupada
+    const lines = input.value.substr(0, selectionPoint).split('\n')
+    const currentLine = lines.length
+    const charInLine = lines[lines.length - 1].length
+    
+    // Valores aproximados para uma UX "boa o suficiente" sem bibliotecas pesadas
+    const lineHeight = 28 // baseado no line-height 1.75 de 16px
+    const charWidth = 9
+    
+    const x = Math.min(offsetLeft + 48 + (charInLine * charWidth), window.innerWidth - 260)
+    const y = Math.min(offsetTop + 32 + (currentLine * lineHeight), window.innerHeight - 300)
+    
+    return { x, y }
+  }
+
+
   const handleKeyDown = (e) => {
+    if (slashMenu.isOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashSelectedIndex(prev => (prev < slashCommands.length - 1 ? prev + 1 : prev))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashSelectedIndex(prev => (prev > 0 ? prev - 1 : 0))
+        return
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        slashCommands[slashSelectedIndex].action()
+        return
+      }
+      if (e.key === 'Escape') {
+        setSlashMenu({ ...slashMenu, isOpen: false })
+        return
+      }
+    }
+
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault()
       if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, bodyContent))
@@ -209,63 +409,7 @@ export default function NoteEditor({ noteId }) {
     toast('Versão restaurada')
   }
 
-  const handleAddTag = async (tagId) => {
-    const currentTagIds = (activeNote.tags || []).map(t => t.id)
-    const newTagIds = currentTagIds.includes(tagId)
-      ? currentTagIds.filter(id => id !== tagId)
-      : [...currentTagIds, tagId]
-    await updateNote(activeNote.id, { tagIds: newTagIds })
-    toast('Tags atualizadas')
-  }
 
-  const handleCreateTag = async () => {
-    if (!newTagName.trim()) return
-    const tag = await createTag(newTagName.trim().toLowerCase(), selectedColor)
-    await handleAddTag(tag.id)
-    setNewTagName('')
-    setShowTagPicker(false)
-  }
-
-  const handleAiSummarize = async () => {
-    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
-    setAiLoading(true)
-    try {
-      const summary = await generateSummary(fullContent)
-      setAiSummary(summary)
-    } catch (e) { toast(e.message) }
-    finally { setAiLoading(false) }
-  }
-
-  const handleAiSuggestTags = async () => {
-    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
-    setAiLoading(true)
-    try {
-      const suggested = await suggestTags(fullContent)
-      for (const tagName of suggested) {
-        const existing = tags.find(t => t.name === tagName)
-        if (existing) {
-          await handleAddTag(existing.id)
-        } else {
-          const tag = await createTag(tagName, TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)])
-          await handleAddTag(tag.id)
-        }
-      }
-      toast('Tags sugeridas adicionadas')
-    } catch (e) { toast(e.message) }
-    finally { setAiLoading(false) }
-  }
-
-  const handleAiImprove = async () => {
-    if (!hasApiKey()) { toast('Configure a API Key nas Configurações'); navigate('/settings'); return }
-    setAiLoading(true)
-    try {
-      const improved = await improveText(bodyContent)
-      setBodyContent(improved)
-      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, improved))
-      toast('Texto melhorado')
-    } catch (e) { toast(e.message) }
-    finally { setAiLoading(false) }
-  }
 
   const handleVoiceToggle = () => {
     if (isRecording) {
@@ -511,7 +655,7 @@ export default function NoteEditor({ noteId }) {
               <Trash2 size={15} />
             </button>
             <button className="btn btn-ghost" title="Ações de IA" onClick={() => setShowAiPanel(v => !v)} style={{ padding: 6, color: 'var(--accent)' }}>
-              <Sparkles size={15} />
+              <Wand2 size={15} />
             </button>
           </>
         )}
@@ -589,8 +733,14 @@ export default function NoteEditor({ noteId }) {
               className="editor-textarea"
               value={bodyContent}
               onChange={handleChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Escreva aqui. Suporte a Markdown."
+            onKeyDown={handleKeyDown}
+            onMouseUp={handleTextSelection}
+            onKeyUp={handleTextSelection}
+            onScroll={() => {
+              if (slashMenu.isOpen) setSlashMenu({ ...slashMenu, isOpen: false })
+              if (selectionMenu.isOpen) setSelectionMenu({ ...selectionMenu, isOpen: false })
+            }}
+            placeholder="Comece a escrever sua nota..."
               disabled={isDeleted}
               spellCheck
               autoComplete="off"
@@ -970,6 +1120,53 @@ export default function NoteEditor({ noteId }) {
           onConfirm={handleDelete}
           onCancel={() => setConfirmDelete(false)}
         />
+      )}
+      {/* Selection AI Menu */}
+      {selectionMenu.isOpen && (
+        <div 
+          className="selection-menu"
+          style={{ top: selectionMenu.y, left: selectionMenu.x }}
+        >
+          <div className="selection-item" onClick={() => { handleAiImproveSelection(); setSelectionMenu({ ...selectionMenu, isOpen: false }); }}>
+            <Sparkles size={14} color="var(--accent)" /> Melhorar
+          </div>
+          <div className="selection-divider" />
+          <div className="selection-item" onClick={() => { handleAiSummarizeSelection(); setSelectionMenu({ ...selectionMenu, isOpen: false }); }}>
+            <FileText size={14} /> Resumir
+          </div>
+          <div className="selection-divider" />
+          <div className="selection-item" onClick={() => { setChatOpen(true); setSelectionMenu({ ...selectionMenu, isOpen: false }); }}>
+            <MessageSquare size={14} /> Perguntar
+          </div>
+        </div>
+      )}
+
+      {slashMenu.isOpen && (
+        <div 
+          className="slash-menu"
+          style={{ top: slashMenu.y, left: slashMenu.x }}
+        >
+          <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Comandos de Bloco
+          </div>
+          {slashCommands.map((cmd, idx) => {
+            const Icon = cmd.icon
+            const isActive = slashSelectedIndex === idx
+            return (
+              <div 
+                key={cmd.id}
+                className={`slash-item ${isActive ? 'active' : ''}`}
+                onMouseEnter={() => setSlashSelectedIndex(idx)}
+                onClick={cmd.action}
+              >
+                <div className="slash-item-icon">
+                  <Icon size={14} />
+                </div>
+                <span>{cmd.title}</span>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
