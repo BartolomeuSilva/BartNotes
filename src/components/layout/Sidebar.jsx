@@ -39,6 +39,27 @@ export default function Sidebar({ onClose }) {
     onClose?.()
   }
 
+  const actionItem = (label, icon, onClickAction, isAccent = false) => (
+    <button
+      key={label}
+      onClick={onClickAction}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '7px 12px', borderRadius: 6, width: '100%',
+        background: 'transparent',
+        color: isAccent ? 'var(--accent)' : 'var(--text-secondary)',
+        border: 'none', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+        fontWeight: 400, textAlign: 'left',
+        transition: 'all 0.1s',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = isAccent ? 'var(--accent)' : 'var(--text-primary)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = isAccent ? 'var(--accent)' : 'var(--text-secondary)' }}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  )
+
   const navItem = (label, icon, path, filterVal, tagId = null) => {
     const isActive = filterVal ? filter === filterVal && !activeTagId
       : tagId ? activeTagId === tagId
@@ -86,63 +107,16 @@ export default function Sidebar({ onClose }) {
         )}
       </div>
 
-      {/* New note */}
-      <div style={{ padding: '12px 12px 8px' }}>
-        <button
-          onClick={handleNewNote}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            width: '100%', padding: '8px 12px', borderRadius: 6,
-            background: 'var(--text-primary)', color: 'var(--bg-primary)',
-            border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-            fontFamily: 'inherit', transition: 'opacity 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <Plus size={14} />
-          Nova nota
-        </button>
-        <button
-          onClick={() => setOpen(true)}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            width: '100%', padding: '8px 12px', borderRadius: 6, marginTop: 6,
-            background: 'var(--bg-tertiary)', color: 'var(--text-primary)',
-            border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-            fontFamily: 'inherit', transition: 'opacity 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <Globe size={14} />
-          Capturar URL
-        </button>
-        <button
-          onClick={() => { setChatOpen(true); onClose?.() }}
-          style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            width: '100%', padding: '8px 12px', borderRadius: 6, marginTop: 6,
-            background: 'var(--bg-tertiary)', color: 'var(--accent)',
-            border: '1px solid var(--border)', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-            fontFamily: 'inherit', transition: 'opacity 0.15s',
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-        >
-          <Sparkles size={14} />
-          Segundo Cérebro
-        </button>
-      </div>
-
       {/* Navigation */}
-      <div style={{ padding: '4px 12px', flex: 1, overflow: 'auto' }}>
-        {navItem('Todas as notas', <FileText size={14} />, '/', 'all')}
-        {navItem('Fixadas', <span style={{ fontSize: 12 }}>📌</span>, '/?filter=pinned', 'pinned')}
-        {navItem('Tarefas', <ListTodo size={14} />, '/tasks')}
-        {navItem('Mapa Mental', <Network size={14} style={{ color: 'var(--accent)' }} />, '/graph')}
-        {navItem('Como usar', <BookOpen size={14} style={{ color: '#f472b6' }} />, '/manual')}
+      <div style={{ padding: '12px', flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {actionItem('Nova Nota', <Plus size={14} />, handleNewNote)}
+        {navItem('Todas as Notas', <FileText size={14} />, '/', 'all')}
         {navItem('Arquivadas', <Archive size={14} />, '/archived', 'archived')}
+        {navItem('Fixadas', <span style={{ fontSize: 12 }}>📌</span>, '/?filter=pinned', 'pinned')}
+        {actionItem('Capturar URL', <Globe size={14} />, () => setOpen(true))}
+        {actionItem('Segundo Cérebro', <Sparkles size={14} />, () => { setChatOpen(true); onClose?.() }, true)}
+        {navItem('Mapa Mental', <Network size={14} />, '/graph')}
+        {navItem('Tarefas', <ListTodo size={14} />, '/tasks')}
         {navItem('Lixeira', <Trash2 size={14} />, '/trash', 'deleted')}
 
         {isInstallable && (
@@ -198,6 +172,11 @@ export default function Sidebar({ onClose }) {
             ))}
           </div>
         )}
+
+        {/* Como Usar at the very end of nav */}
+        <div style={{ marginTop: 16 }}>
+          {navItem('Como Usar', <BookOpen size={14} style={{ color: '#f472b6' }} />, '/manual')}
+        </div>
       </div>
 
       {/* Bottom actions */}
