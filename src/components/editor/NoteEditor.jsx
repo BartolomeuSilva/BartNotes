@@ -343,7 +343,7 @@ export default function NoteEditor({ noteId }) {
           </div>
           
           <div style={{ 
-            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 
+            display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 
           }}>
             {TEMPLATES.map(tpl => (
               <div 
