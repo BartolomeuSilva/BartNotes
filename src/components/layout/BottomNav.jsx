@@ -7,7 +7,7 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const location = useLocation()
   const { filter, setFilter, createNote } = useNotesStore()
-  const { setSidebarOpen, editorOpen, setChatOpen } = useUiStore()
+  const { setSidebarOpen, editorOpen, setChatOpen, setEditorOpen } = useUiStore()
 
   const handleNav = (filterVal, path) => {
     setFilter(filterVal)
@@ -17,6 +17,7 @@ export default function BottomNav() {
   const handleNewNote = async () => {
     setFilter('all')
     const note = await createNote()
+    setEditorOpen(true)
     navigate(`/note/${note.id}`)
   }
   

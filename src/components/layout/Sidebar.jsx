@@ -43,6 +43,7 @@ export default function Sidebar({ onClose }) {
   const handleNewNote = async () => {
     setFilter('all')
     const note = await createNote()
+    setEditorOpen(true)
     navigate(`/note/${note.id}`)
     onClose?.()
   }
