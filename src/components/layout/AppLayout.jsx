@@ -55,9 +55,9 @@ export default function AppLayout() {
           return
         }
 
-        // 2. Recarrega dados frescos do servidor
-        fetchNotes()
-        fetchTags()
+        // 2. Recarrega dados frescos do servidor silenciosamente
+        fetchNotes({ silent: true })
+        fetchTags({ silent: true })
 
         // 3. Reconecta canais Realtime
         startSubscriptions()

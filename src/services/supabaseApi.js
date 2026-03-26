@@ -11,6 +11,13 @@ function handleError(error, throwErr = true) {
   return error
 }
 
+// Cache: lê do localStorage/memória (instantâneo) ao invés de fazer HTTP request
+async function getCachedUser() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.user) throw new Error('Not authenticated')
+  return session.user
+}
+
 async function getProfile(userId, userEmail = '') {
   const { data, error } = await supabase
     .from('profiles')
@@ -130,15 +137,15 @@ export const authApi = {
 export const notesApi = {
   async list(params = {}) {
     const { filter = 'all', tag: tagId, q, limit = 500, page = 1, sort = 'updated_at', order = 'desc' } = params
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
 
     let query = supabase
       .from('notes')
       .select(`
-        *,
+        id, title, content, is_pinned, is_archived, is_deleted,
+        updated_at, created_at, word_count, image_url, deleted_at,
         note_tags(tags(id, name, color))
-      `, { count: 'exact' })
+      `)
       .eq('user_id', user.id)
       .order(sort, { ascending: order === 'asc' })
       .range((page - 1) * limit, page * limit - 1)
@@ -158,14 +165,14 @@ export const notesApi = {
         .eq('tag_id', tagId)
       const ids = (noteIds || []).map(r => r.note_id)
       if (ids.length) query = query.in('id', ids)
-      else query = query.eq('id', '00000000-0000-0000-0000-000000000000') // no results
+      else query = query.eq('id', '00000000-0000-0000-0000-000000000000')
     }
 
     if (q) {
       query = query.or(`title.ilike.%${q}%,content.ilike.%${q}%`)
     }
 
-    const { data: rows, error, count } = await query
+    const { data: rows, error } = await query
     handleError(error)
 
     const notes = (rows || []).map(n => {
@@ -174,15 +181,11 @@ export const notesApi = {
       return toCamelKeys({ ...note, tags })
     })
 
-    return {
-      data: notes,
-      meta: { page, limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / limit) }
-    }
+    return { data: notes }
   },
 
   async get(id) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('notes')
       .select(`
@@ -201,8 +204,7 @@ export const notesApi = {
 
   async create(body) {
     console.log('supabaseApi.create called with title:', body.title?.slice(0, 50))
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     
     let title = body.title || extractTitle(body.content) || 'Nota sem título'
     let content = body.content || ''
@@ -245,8 +247,7 @@ export const notesApi = {
   },
 
   async update(id, body) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const existing = (await notesApi.get(id)).data
 
     let title = body.title !== undefined ? body.title : existing.title
@@ -298,8 +299,7 @@ export const notesApi = {
 
   async delete(id) {
     console.log('supabaseApi delete called with:', id)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     
     const { error } = await supabase
       .from('notes')
@@ -313,8 +313,7 @@ export const notesApi = {
   },
 
   async deletePermanent(id) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { error } = await supabase
       .from('notes')
       .delete()
@@ -325,8 +324,7 @@ export const notesApi = {
   },
 
   async restore(id) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('notes')
       .update({ is_deleted: false, deleted_at: null })
@@ -341,8 +339,7 @@ export const notesApi = {
 
   async pin(id) {
     const { data: existing } = await notesApi.get(id)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { error } = await supabase
       .from('notes')
       .update({ is_pinned: !existing.isPinned })
@@ -353,8 +350,7 @@ export const notesApi = {
   },
 
   async archive(id) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     await supabase
       .from('notes')
       .update({ is_archived: true, is_pinned: false })
@@ -377,8 +373,7 @@ export const notesApi = {
 
   async duplicate(id) {
     const { data: existing } = await notesApi.get(id)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const tagIds = (existing.tags || []).map(t => t.id)
     return notesApi.create({
       title: `${existing.title} (Cópia)`,
@@ -391,8 +386,7 @@ export const notesApi = {
 // ── Tags ──
 export const tagsApi = {
   async list() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('tags')
       .select('*')
@@ -403,8 +397,7 @@ export const tagsApi = {
   },
 
   async create(body) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('tags')
       .insert({
@@ -419,8 +412,7 @@ export const tagsApi = {
   },
 
   async update(id, body) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const updateData = {}
     if (body.name !== undefined) updateData.name = body.name.toLowerCase()
     if (body.color !== undefined) updateData.color = body.color
@@ -436,8 +428,7 @@ export const tagsApi = {
   },
 
   async delete(id) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { error } = await supabase
       .from('tags')
       .delete()
@@ -452,8 +443,7 @@ export const tagsApi = {
 export const searchApi = {
   async search(q, params = {}) {
     const { limit = 10 } = params
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('notes')
       .select('id, title, content, updated_at')
@@ -476,8 +466,7 @@ export const searchApi = {
 // ── User ──
 export const userApi = {
   async stats() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const [notesRes, tagsRes, wordsRes] = await Promise.all([
       supabase.from('notes').select('id', { count: 'exact', head: true }).eq('user_id', user.id).eq('is_deleted', false),
       supabase.from('tags').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
@@ -497,8 +486,7 @@ export const userApi = {
   },
 
   async updateProfile(body) {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data, error } = await supabase
       .from('profiles')
       .update({ username: body.username, avatar_url: body.avatar_url })
@@ -510,7 +498,7 @@ export const userApi = {
   },
 
   async changePassword(body) {
-    const { data: { user } } = await supabase.auth.getUser()
+    const user = await getCachedUser()
     if (!user?.email) throw new Error('Not authenticated')
     await supabase.auth.signInWithPassword({
       email: user.email,
@@ -524,8 +512,7 @@ export const userApi = {
   },
 
   async exportData() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     const { data: notes } = await supabase
       .from('notes')
       .select(`
@@ -540,8 +527,7 @@ export const userApi = {
   },
 
   async deleteAccount() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) throw new Error('Not authenticated')
+    const user = await getCachedUser()
     // Delete user - cascade will remove notes, tags, etc.
     // Supabase doesn't allow user to delete self via client; needs Edge Function with service role
     // For now we delete all user data - user can't access anyway

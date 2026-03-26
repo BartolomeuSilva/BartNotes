@@ -21,7 +21,7 @@ export const useNotesStore = create((set, get) => ({
 
   fetchNotes: async (params = {}) => {
     // Safety: se loading ficou travado por mais de 10s (ex: aba em background), reseta
-    if (get().loading) {
+    if (get().loading && !params.silent) {
       const stuckSince = get()._loadingStartedAt
       if (stuckSince && Date.now() - stuckSince > 10000) {
         console.warn('[notesStore] Loading travado detectado, resetando...')
@@ -30,7 +30,10 @@ export const useNotesStore = create((set, get) => ({
         return
       }
     }
-    set({ loading: true, _loadingStartedAt: Date.now() })
+    
+    if (!params.silent) {
+      set({ loading: true, _loadingStartedAt: Date.now() })
+    }
     try {
       const { filter, activeTagId, searchQuery } = get()
       const { data } = await notesApi.list({

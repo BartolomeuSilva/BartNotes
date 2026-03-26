@@ -8,9 +8,9 @@ export const useTagsStore = create((set, storeGet) => ({
 
   reset: () => set({ tags: [], loading: false }),
 
-  fetchTags: async () => {
+  fetchTags: async (params = {}) => {
     // Safety: se loading ficou travado por mais de 10s, reseta
-    if (storeGet().loading) {
+    if (storeGet().loading && !params.silent) {
       const stuckSince = storeGet()._loadingStartedAt
       if (stuckSince && Date.now() - stuckSince > 10000) {
         console.warn('[tagsStore] Loading travado detectado, resetando...')
@@ -19,7 +19,10 @@ export const useTagsStore = create((set, storeGet) => ({
         return
       }
     }
-    set({ loading: true, _loadingStartedAt: Date.now() })
+    
+    if (!params.silent) {
+      set({ loading: true, _loadingStartedAt: Date.now() })
+    }
     try {
       const { data } = await tagsApi.list()
       set({ tags: data || [], loading: false, _loadingStartedAt: null })
