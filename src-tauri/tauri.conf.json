@@ -43,11 +43,7 @@
     },
     "windows": {
       "nsis": {
-        "installerIcon": "icons/icon.ico",
-        "headerImage": "icons/128x128.png",
-        "sidebarImage": "icons/128x128.png",
-        "installMode": "currentUser",
-        "license": "../LICENSE.txt"
+        "installMode": "currentUser"
       }
     }
   }

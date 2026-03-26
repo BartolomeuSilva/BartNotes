@@ -6,6 +6,11 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-open",
+      "allow": [{ "url": "http://*/**" }, { "url": "https://*/**" }]
+    }
   ]
 }
