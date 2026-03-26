@@ -7,6 +7,7 @@ import { useUiStore } from '../../store/uiStore'
 import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
 import { notesApi } from '../../services/supabaseApi'
+import { supabase } from '../../lib/supabase'
 
 export default function AppLayout() {
   const { id } = useParams()
@@ -39,19 +40,39 @@ export default function AppLayout() {
     // Inicia na montagem
     startSubscriptions()
 
-    // Listener para quando o app volta do background (muito comum em mobile)
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('[AppLayout] App visível, atualizando dados...')
+    // Reativa o app quando a aba volta do background
+    const handleWakeUp = async () => {
+      if (document.visibilityState === 'hidden') return
+      console.log('[AppLayout] App voltou ao foco, reativando...')
+      
+      try {
+        // 1. Refresca o token JWT (pode ter expirado em background)
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) console.warn('[AppLayout] Erro ao refrescar sessão:', error.message)
+        
+        if (!session) {
+          console.warn('[AppLayout] Sessão expirada, redirecionando para login...')
+          return
+        }
+
+        // 2. Recarrega dados frescos do servidor
+        fetchNotes()
+        fetchTags()
+
+        // 3. Reconecta canais Realtime
         startSubscriptions()
+      } catch (err) {
+        console.error('[AppLayout] Erro na reativação:', err)
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('visibilitychange', handleWakeUp)
+    window.addEventListener('focus', handleWakeUp)
 
     return () => {
       console.log('[AppLayout] Desmontando componente, limpando conexões...')
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('visibilitychange', handleWakeUp)
+      window.removeEventListener('focus', handleWakeUp)
       if (unsubscribeNotes) unsubscribeNotes()
       if (unsubscribeTags) unsubscribeTags()
     }

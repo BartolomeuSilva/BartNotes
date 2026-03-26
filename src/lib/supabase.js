@@ -9,6 +9,8 @@ if (!url || !anonKey) {
 
 export const supabase = createClient(url || '', anonKey || '', {
   auth: {
-    detectSessionInUrl: false
+    detectSessionInUrl: false,
+    autoRefreshToken: true,
+    persistSession: true,
   }
 })

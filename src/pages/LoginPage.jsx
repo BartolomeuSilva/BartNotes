@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
-import { useInstallPWA } from '../hooks/useInstallPWA'
+import { useInstallPwa } from '../hooks/useInstallPwa'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { canInstall, install, ios, showIOSHint, setShowIOSHint } = useInstallPWA()
+  const { canInstall, install, ios, showIOSHint, setShowIOSHint } = useInstallPwa()
 
   useEffect(() => {
     if (user) navigate('/', { replace: true })

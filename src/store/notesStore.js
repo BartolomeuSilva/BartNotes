@@ -20,8 +20,17 @@ export const useNotesStore = create((set, get) => ({
   setSearch: (q) => set({ searchQuery: q }),
 
   fetchNotes: async (params = {}) => {
-    if (get().loading) return
-    set({ loading: true })
+    // Safety: se loading ficou travado por mais de 10s (ex: aba em background), reseta
+    if (get().loading) {
+      const stuckSince = get()._loadingStartedAt
+      if (stuckSince && Date.now() - stuckSince > 10000) {
+        console.warn('[notesStore] Loading travado detectado, resetando...')
+        set({ loading: false, _loadingStartedAt: null })
+      } else {
+        return
+      }
+    }
+    set({ loading: true, _loadingStartedAt: Date.now() })
     try {
       const { filter, activeTagId, searchQuery } = get()
       const { data } = await notesApi.list({
@@ -31,10 +40,10 @@ export const useNotesStore = create((set, get) => ({
         limit: 500,
         ...params,
       })
-      set({ notes: data || [], loading: false })
+      set({ notes: data || [], loading: false, _loadingStartedAt: null })
     } catch (err) {
       console.error('[notesStore] fetchNotes failed:', err)
-      set({ loading: false }) // Mantém as notas atuais no erro
+      set({ loading: false, _loadingStartedAt: null }) // Mantém as notas atuais no erro
     }
   },
 

@@ -9,14 +9,23 @@ export const useTagsStore = create((set, storeGet) => ({
   reset: () => set({ tags: [], loading: false }),
 
   fetchTags: async () => {
-    if (storeGet().loading) return
-    set({ loading: true })
+    // Safety: se loading ficou travado por mais de 10s, reseta
+    if (storeGet().loading) {
+      const stuckSince = storeGet()._loadingStartedAt
+      if (stuckSince && Date.now() - stuckSince > 10000) {
+        console.warn('[tagsStore] Loading travado detectado, resetando...')
+        set({ loading: false, _loadingStartedAt: null })
+      } else {
+        return
+      }
+    }
+    set({ loading: true, _loadingStartedAt: Date.now() })
     try {
       const { data } = await tagsApi.list()
-      set({ tags: data || [], loading: false })
+      set({ tags: data || [], loading: false, _loadingStartedAt: null })
     } catch (err) {
       console.error('[tagsStore] fetchTags failed:', err)
-      set({ tags: [], loading: false })
+      set({ tags: [], loading: false, _loadingStartedAt: null })
     }
   },
 
