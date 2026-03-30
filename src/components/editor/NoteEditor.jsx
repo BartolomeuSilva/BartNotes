@@ -21,11 +21,21 @@ export default function NoteEditor({ noteId }) {
   const { tags, createTag } = useTagsStore()
   const { toast, setEditorOpen, isFocusMode, setFocusMode, setChatOpen } = useUiStore()
   const { hasApiKey } = useAiStore()
-  const { isRecording, transcript, startRecording, stopRecording, reset, error } = useVoiceStore()
+  const { isRecording, transcript, startRecording, stopRecording, reset, error, checkStoredTranscript, hasStoredTranscript } = useVoiceStore()
+
+  useEffect(() => {
+    const stored = checkStoredTranscript()
+    if (stored && !isRecording) {
+      setVoiceTranscript(stored)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isRecording && transcript) {
-      setVoiceTranscript(prev => prev ? `${prev} ${transcript}` : transcript)
+      setVoiceTranscript(prev => {
+        const newTranscript = prev ? `${prev} ${transcript}` : transcript
+        return newTranscript
+      })
     }
   }, [isRecording, transcript])
 
@@ -494,9 +504,11 @@ export default function NoteEditor({ noteId }) {
 
       const newContent = bodyContent ? `${bodyContent}\n\n${finalTranscript}` : finalTranscript
       setBodyContent(newContent)
-      if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, newContent))
-      reset()
+      if (activeNote) {
+        await updateNote(activeNote.id, { content: getFullContent(titleLine, newContent) })
+      }
       setVoiceTranscript('')
+      reset()
       toast('Texto por voz inserido')
     }
   }
@@ -504,17 +516,33 @@ export default function NoteEditor({ noteId }) {
   const handleAudioUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (!hasApiKey()) { toast('Configure a API Key para usar a IA'); navigate('/settings'); return }
+    
+    if (!hasApiKey()) { 
+      toast('Configure a API Key para usar a IA') 
+      navigate('/settings') 
+      return 
+    }
+
+    const maxSize = 25 * 1024 * 1024
+    if (file.size > maxSize) {
+      toast('Arquivo muito grande. Máximo 25MB.')
+      e.target.value = ''
+      return
+    }
     
     setIsUploadingAudio(true)
     try {
       const text = await transcribeAudio(file)
+      if (!text || !text.trim()) {
+        throw new Error('Não foi possível extrair texto do áudio')
+      }
       const newContent = bodyContent ? `${bodyContent}\n\n${text}` : text
       setBodyContent(newContent)
       if (activeNote) updateNote(activeNote.id, getFullContent(titleLine, newContent))
       toast('Áudio transcrito com sucesso!')
     } catch (err) {
-      toast(err.message || 'Erro ao transcrever áudio')
+      console.error('[NoteEditor] Erro ao transcrever áudio:', err)
+      toast(err.message || 'Erro ao transcrever áudio. Tente novamente.')
     } finally {
       setIsUploadingAudio(false)
       e.target.value = ''
@@ -681,9 +709,9 @@ export default function NoteEditor({ noteId }) {
 
         {/* Save status */}
         <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>
-          {saveStatus === 'saving' && <span style={{ animation: 'pulseSoft 2s ease-in-out infinite' }}>A guardar…</span>}
-          {saveStatus === 'saved' && <span style={{ color: '#059669' }}>✓ Guardado</span>}
-          {saveStatus === 'error' && <span style={{ color: '#dc2626' }}>Erro ao guardar</span>}
+          {saveStatus === 'saving' && <span style={{ animation: 'pulseSoft 2s ease-in-out infinite' }}>Salvando…</span>}
+          {saveStatus === 'saved' && <span style={{ color: '#059669' }}>✓ Salvo</span>}
+          {saveStatus === 'error' && <span style={{ color: '#dc2626' }}>Erro ao salvar</span>}
         </span>
 
         {!isDeleted && (
@@ -1135,7 +1163,7 @@ export default function NoteEditor({ noteId }) {
       )}
 
       {/* Voice Recording Panel */}
-      {!isFocusMode && (isRecording || voiceTranscript || transcript || error) && (
+      {!isFocusMode && (isRecording || voiceTranscript || transcript || error || hasStoredTranscript) && (
         <div style={{
           position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 50,
           background: 'var(--bg-primary)', border: '1px solid var(--border)',
@@ -1150,7 +1178,7 @@ export default function NoteEditor({ noteId }) {
                 animation: isRecording ? 'pulseSoft 1s ease-in-out infinite' : undefined 
               }} />
               <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
-                {isRecording ? 'A gravar...' : 'Gravação concluída'}
+                {isRecording ? 'A gravar...' : hasStoredTranscript ? 'Transcript salvo encontrado' : 'Gravação concluída'}
               </span>
             </div>
             <button className="btn btn-ghost" style={{ padding: 4 }} onClick={() => { reset(); setVoiceTranscript(''); }}>

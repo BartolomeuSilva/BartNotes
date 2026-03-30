@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabase'
 import { notesApi } from '../services/supabaseApi'
+import { noteCache, noteSingleCache } from '../lib/cache'
 
 export const useNotesStore = create((set, get) => ({
   notes: [],
@@ -13,20 +14,37 @@ export const useNotesStore = create((set, get) => ({
   searchQuery: '',
   selectedNoteIds: [],
 
-  reset: () => set({ notes: [], activeNote: null, loading: false, saving: false, saveStatus: 'saved', filter: 'all', activeTagId: null, searchQuery: '', selectedNoteIds: [] }),
+  reset: () => {
+    noteCache.invalidate()
+    noteSingleCache.invalidate()
+    set({ notes: [], activeNote: null, loading: false, saving: false, saveStatus: 'saved', filter: 'all', activeTagId: null, searchQuery: '', selectedNoteIds: [] })
+  },
 
   setFilter: (filter) => set({ filter, activeTagId: null, activeNote: null, selectedNoteIds: [] }),
   setActiveTag: (tagId) => set({ activeTagId: tagId, filter: 'all', activeNote: null, selectedNoteIds: [] }),
   setSearch: (q) => set({ searchQuery: q }),
 
   fetchNotes: async (params = {}) => {
-    // Safety: se loading ficou travado por mais de 10s (ex: aba em background), reseta
+    const { filter, activeTagId, searchQuery } = get()
+    const cacheKey = noteCache.getKey(params.filter ?? filter, params.tagId ?? activeTagId, params.q ?? searchQuery)
+    
+    const cachedNotes = !params.silent ? noteCache.get(params.filter ?? filter, params.tagId ?? activeTagId, params.q ?? searchQuery) : null
+    
+    if (cachedNotes && !params.force) {
+      set({ notes: cachedNotes, loading: false })
+      if (params.silent) return
+    }
+    
+    if (noteCache.isPending(cacheKey)) {
+      return
+    }
+    
     if (get().loading && !params.silent) {
       const stuckSince = get()._loadingStartedAt
       if (stuckSince && Date.now() - stuckSince > 10000) {
         console.warn('[notesStore] Loading travado detectado, resetando...')
         set({ loading: false, _loadingStartedAt: null })
-      } else {
+      } else if (!cachedNotes) {
         return
       }
     }
@@ -34,8 +52,10 @@ export const useNotesStore = create((set, get) => ({
     if (!params.silent) {
       set({ loading: true, _loadingStartedAt: Date.now() })
     }
+    
+    noteCache.addPending(cacheKey)
+    
     try {
-      const { filter, activeTagId, searchQuery } = get()
       const { data } = await notesApi.list({
         filter: params.filter ?? filter,
         tag: params.tagId ?? activeTagId,
@@ -43,10 +63,14 @@ export const useNotesStore = create((set, get) => ({
         limit: 500,
         ...params,
       })
+      
+      noteCache.set(params.filter ?? filter, params.tagId ?? activeTagId, params.q ?? searchQuery, data || [])
       set({ notes: data || [], loading: false, _loadingStartedAt: null })
     } catch (err) {
       console.error('[notesStore] fetchNotes failed:', err)
-      set({ loading: false, _loadingStartedAt: null }) // Mantém as notas atuais no erro
+      set({ loading: false, _loadingStartedAt: null })
+    } finally {
+      noteCache.removePending(cacheKey)
     }
   },
 
@@ -60,20 +84,22 @@ export const useNotesStore = create((set, get) => ({
         const { notes, activeNote } = get()
 
         if (payload.eventType === 'INSERT') {
-          // Busca a nota completa (com tags) para inserir na lista
           const { data: newNote } = await notesApi.get(payload.new.id)
+          noteCache.addNote(newNote)
           set({ notes: [newNote, ...notes] })
         } 
         else if (payload.eventType === 'UPDATE') {
-          // Atualiza apenas a nota específica na lista sem disparar refresh total
           const { data: updatedNote } = await notesApi.get(payload.new.id)
+          noteCache.updateNote(updatedNote)
+          noteSingleCache.set(updatedNote.id, updatedNote)
           set({ 
             notes: notes.map(n => n.id === updatedNote.id ? updatedNote : n),
-            // Se for a nota ativa, atualiza ela também
             activeNote: activeNote?.id === updatedNote.id ? updatedNote : activeNote
           })
         } 
         else if (payload.eventType === 'DELETE') {
+          noteCache.removeNote(payload.old.id)
+          noteSingleCache.invalidate(payload.old.id)
           set({ 
             notes: notes.filter(n => n.id !== payload.old.id),
             activeNote: activeNote?.id === payload.old.id ? null : activeNote
@@ -81,10 +107,11 @@ export const useNotesStore = create((set, get) => ({
         }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'note_tags' }, async (payload) => {
-        // Quando mudam as tags, atualizamos apenas aquela nota
         const noteId = payload.new?.note_id || payload.old?.note_id
         if (noteId) {
           const { data: updatedNote } = await notesApi.get(noteId)
+          noteCache.updateNote(updatedNote)
+          noteSingleCache.set(noteId, updatedNote)
           const { notes, activeNote } = get()
           set({
             notes: notes.map(n => n.id === updatedNote.id ? updatedNote : n),
@@ -99,7 +126,12 @@ export const useNotesStore = create((set, get) => ({
     }
   },
 
-  setActiveNote: (note) => set({ activeNote: note }),
+  setActiveNote: (note) => {
+    if (note?.id) {
+      noteSingleCache.set(note.id, note)
+    }
+    set({ activeNote: note })
+  },
 
   createNote: async (data = {}) => {
     console.log('notesStore createNote called with:', data)
@@ -116,12 +148,15 @@ export const useNotesStore = create((set, get) => ({
     set({ saveStatus: 'saving' })
     try {
       const { data: updated } = await notesApi.update(id, body)
+      noteCache.updateNote(updated)
+      noteSingleCache.set(id, updated)
       set(s => ({
         notes: s.notes.map(n => n.id === id ? updated : n),
         activeNote: s.activeNote?.id === id ? updated : s.activeNote,
         saveStatus: 'saved',
       }))
-    } catch {
+    } catch (err) {
+      console.error('[updateNote] Erro ao salvar nota:', err)
       set({ saveStatus: 'error' })
     }
   },

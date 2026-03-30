@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Outlet, useParams } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import NoteList from './NoteList'
@@ -8,13 +8,15 @@ import { useNotesStore } from '../../store/notesStore'
 import { useTagsStore } from '../../store/tagsStore'
 import { notesApi } from '../../services/supabaseApi'
 import { supabase } from '../../lib/supabase'
+import { noteCache } from '../../lib/cache'
 
 export default function AppLayout() {
   const { id } = useParams()
   const { sidebarOpen, editorOpen, setSidebarOpen, setEditorOpen, isFocusMode } = useUiStore()
-  const { fetchNotes, setActiveNote, subscribeToNotes } = useNotesStore()
+  const { fetchNotes, setActiveNote, subscribeToNotes, filter, activeTagId, searchQuery } = useNotesStore()
   const { fetchTags, subscribeToTags } = useTagsStore()
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const initialLoadDone = useRef(false)
 
   useEffect(() => {
     console.log('[AppLayout] Montando componentes e iniciando Realtime...')
@@ -23,7 +25,6 @@ export default function AppLayout() {
     let unsubscribeTags = null
 
     const startSubscriptions = () => {
-      // Limpa inscrições anteriores se existirem
       if (unsubscribeNotes) unsubscribeNotes()
       if (unsubscribeTags) unsubscribeTags()
       
@@ -37,16 +38,30 @@ export default function AppLayout() {
       }
     }
 
-    // Inicia na montagem
+    // Carrega dados - primeiro tenta cache, depois atualiza em background
+    const loadInitialData = async () => {
+      const cachedNotes = noteCache.get(filter, activeTagId, searchQuery)
+      
+      if (cachedNotes && cachedNotes.length > 0) {
+        console.log('[AppLayout] Usando notas do cache:', cachedNotes.length)
+        useNotesStore.setState({ notes: cachedNotes, loading: false })
+      }
+      
+      // Busca dados frescos em background
+      fetchNotes({ silent: true, force: true })
+      fetchTags({ silent: true })
+      
+      initialLoadDone.current = true
+    }
+
+    loadInitialData()
     startSubscriptions()
 
-    // Reativa o app quando a aba volta do background
     const handleWakeUp = async () => {
       if (document.visibilityState === 'hidden') return
       console.log('[AppLayout] App voltou ao foco, reativando...')
       
       try {
-        // 1. Refresca o token JWT (pode ter expirado em background)
         const { data: { session }, error } = await supabase.auth.getSession()
         if (error) console.warn('[AppLayout] Erro ao refrescar sessão:', error.message)
         
@@ -55,11 +70,9 @@ export default function AppLayout() {
           return
         }
 
-        // 2. Recarrega dados frescos do servidor silenciosamente
-        fetchNotes({ silent: true })
+        fetchNotes({ silent: true, force: true })
         fetchTags({ silent: true })
 
-        // 3. Reconecta canais Realtime
         startSubscriptions()
       } catch (err) {
         console.error('[AppLayout] Erro na reativação:', err)
@@ -95,20 +108,18 @@ export default function AppLayout() {
       const { notes } = useNotesStore.getState()
       const existing = notes.find(n => n.id === id)
       
-      // No mobile, se houver ID na URL, o editor DEVE estar aberto
       setEditorOpen(true)
 
       if (existing) {
         setActiveNote(existing)
       } else {
-        notesApi.get(id)
+        notesApi.get(id, true)
           .then(({ data }) => setActiveNote(data))
           .catch(err => console.error('[AppLayout] Erro ao carregar nota individual:', err))
       }
     } else {
       setActiveNote(null)
       
-      // Se voltamos para o root e não é uma página utilitária (tasks, graph, etc), fecha o editor
       const path = window.location.pathname
       if (path === '/' || path.startsWith('/tags/')) {
         setEditorOpen(false)

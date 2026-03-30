@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { toCamelKeys, toSnakeKeys } from '../lib/caseTransform'
+import { noteSingleCache } from '../lib/cache'
 
 function handleError(error, throwErr = true) {
   if (throwErr && error) {
@@ -145,7 +146,7 @@ export const notesApi = {
         id, title, content, is_pinned, is_archived, is_deleted,
         updated_at, created_at, word_count, image_url, deleted_at,
         note_tags(tags(id, name, color))
-      `)
+      `, { count: 'exact' })
       .eq('user_id', user.id)
       .order(sort, { ascending: order === 'asc' })
       .range((page - 1) * limit, page * limit - 1)
@@ -172,7 +173,7 @@ export const notesApi = {
       query = query.or(`title.ilike.%${q}%,content.ilike.%${q}%`)
     }
 
-    const { data: rows, error } = await query
+    const { data: rows, error, count } = await query
     handleError(error)
 
     const notes = (rows || []).map(n => {
@@ -181,10 +182,15 @@ export const notesApi = {
       return toCamelKeys({ ...note, tags })
     })
 
-    return { data: notes }
+    return { data: notes, count }
   },
 
-  async get(id) {
+  async get(id, useCache = false) {
+    if (useCache) {
+      const cached = noteSingleCache.get(id)
+      if (cached) return { data: cached }
+    }
+    
     const user = await getCachedUser()
     const { data, error } = await supabase
       .from('notes')
@@ -199,7 +205,9 @@ export const notesApi = {
     if (!data) throw new Error('Not found')
     const tags = (data.note_tags || []).map(nt => nt.tags).filter(Boolean)
     const { note_tags: _, ...note } = data
-    return { data: toCamelKeys({ ...note, tags }) }
+    const result = toCamelKeys({ ...note, tags })
+    noteSingleCache.set(id, result)
+    return { data: result }
   },
 
   async create(body) {
@@ -248,7 +256,7 @@ export const notesApi = {
 
   async update(id, body) {
     const user = await getCachedUser()
-    const existing = (await notesApi.get(id)).data
+    const existing = (await notesApi.get(id, false)).data
 
     let title = body.title !== undefined ? body.title : existing.title
     if (body.content !== undefined && body.title === undefined) {
@@ -271,7 +279,10 @@ export const notesApi = {
       .update(updateData)
       .eq('id', id)
       .eq('user_id', user.id)
-    handleError(error)
+    if (error) {
+      console.error('[notesApi.update] Erro ao atualizar nota:', error)
+      throw error
+    }
 
     if (body.tagIds !== undefined) {
       await supabase.from('note_tags').delete().eq('note_id', id)
@@ -294,7 +305,12 @@ export const notesApi = {
       })
     }
 
-    return notesApi.get(id)
+    try {
+      return await notesApi.get(id, false)
+    } catch (getErr) {
+      console.warn('[notesApi.update] Erro ao buscar nota após update, retornando dados locais:', getErr)
+      return { data: { ...existing, ...updateData } }
+    }
   },
 
   async delete(id) {

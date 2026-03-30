@@ -129,7 +129,7 @@ export default function SettingsPage() {
                 <input className="input" value={username} onChange={e => setUsername(e.target.value)} />
               </div>
               <button type="submit" className="btn btn-primary" disabled={loading} style={{ alignSelf: 'flex-start', padding: '8px 20px' }}>
-                {loading ? 'A guardar…' : 'Guardar'}
+                {loading ? 'Salvando…' : 'Salvar'}
               </button>
             </form>
           </div>
